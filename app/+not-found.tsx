@@ -1,40 +1,29 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet } from 'react-native';
-
-import { Text, View } from '@/components/Themed';
+import { Link, router, Stack } from 'expo-router';
+import { SafeAreaView, SafeAreaViewBase, Text, View } from 'react-native';
+import { useTheme } from '@/context/ThemeProvider';
+import Button from '@/components/Button';
 
 export default function NotFoundScreen() {
-  return (
-    <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
+  const { theme } = useTheme();
 
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
-        </Link>
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <View
+        className={`
+          flex-1 items-center justify-center p-5
+  
+        `}
+      >
+        <Text
+          className={`
+            ${theme === 'light'
+              ? 'text-light-text-primary'
+              : 'text-dark-text-primary'
+            }
+          `}
+        >Opps! This screen doesn't exist.</Text>
       </View>
-    </>
+
+    </SafeAreaView >
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-  linkText: {
-    fontSize: 14,
-    color: '#2e78b7',
-  },
-});

@@ -1,0 +1,44 @@
+
+I followed the instructions from the NativeWind documentation to set up TailwindCSS and NativeWind in my React Native project. But I'm getting an error when I try to run the project.
+💨 Tailwind / NativeWind
+The last time I worked with React Native, I used Tailwind React Native Classnames to style components using Tailwind's framework. However, there's a new kid on the block that takes the cake when trying to work with TailwindCSS and React Native: NativeWind.
+
+Instead of running a function inside our components to generate style properties from Tailwind's utility classes, NativeWind takes a different approach. It uses babel to convert the className prop on our components to the native style prop during transpilation and compilation. It's really slick and extremely performant.
+
+So, let's set it up! Run the following to install NativeWind and Tailwind.
+
+npm install nativewind
+npm install --save-dev tailwindcss
+Next, run Tailwind's init command like you would normally.
+
+npx tailwindcss init
+And update the content parameter in your tailwind.config.js to have Tailwind and NativeWind scan for styles in the right directories for your project. For me, I'll be styling components in the expo-router app directory and my components folder.
+
+// tailwind.config.js
+module.exports = {
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}"
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+Next, add the nativewind/babel plugin to the babel.config.js.
+
+// babel.config.js
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: ["babel-preset-expo"],
+    plugins: [
+      "nativewind/babel",
+      require.resolve("expo-router/babel")
+    ],
+  };
+};
+To be able to use the className attribute on React Native components without Typescript yelling at us, we need to add a global.d.ts file with the following content:
+
+/// <reference types="nativewind/types" />`
+And just like that, we can style our React Native components using Tailwind! Be sure to check NativeWind's documentation to see a list of supported and unsupported utilities.
