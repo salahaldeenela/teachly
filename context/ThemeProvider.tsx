@@ -1,38 +1,46 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useColorScheme, View } from 'react-native';
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useColorScheme } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-type ThemeType = 'light' | 'dark';
+type Theme = 'light' | 'dark'
 
 interface ThemeContextType {
-    theme: ThemeType;
-    toggleTheme: () => void;
+    theme: Theme
+    toggleTheme: () => void
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const systemColorScheme = useColorScheme();
-    const [theme, setTheme] = useState<ThemeType>(systemColorScheme || 'light');
+    const systemTheme = useColorScheme() as Theme
+    const [theme, setTheme] = useState<Theme>(systemTheme || 'light')
 
+    // Immediately respond to system theme changes
     useEffect(() => {
-        setTheme(systemColorScheme || 'light');
-    }, [systemColorScheme]);
+        setTheme(systemTheme || 'light')
+    }, [systemTheme])
 
-    const toggleTheme = () => {
-        setTheme(current => current === 'light' ? 'dark' : 'light');
-    };
+    const toggleTheme = async () => {
+        try {
+            const newTheme = theme === 'light' ? 'dark' : 'light'
+            setTheme(newTheme)
+            await AsyncStorage.setItem('theme', newTheme)
+        } catch (error) {
+            console.error('Error saving theme:', error)
+        }
+    }
 
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
-    );
+    )
 }
 
-export function useTheme() {
-    const context = useContext(ThemeContext);
+export const useTheme = () => {
+    const context = useContext(ThemeContext)
     if (context === undefined) {
-        throw new Error('useTheme must be used within a ThemeProvider');
+        throw new Error('useTheme must be used within a ThemeProvider')
     }
-    return context;
+    return context
 }

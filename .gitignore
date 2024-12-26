@@ -8,6 +8,10 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+/android
+
+# cursor.txt
+cursor.txt
 
 # Native
 *.orig.*
@@ -34,3 +38,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
