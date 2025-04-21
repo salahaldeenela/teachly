@@ -9,21 +9,20 @@ const Home = () => {
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [upcomingSessions, setUpcomingSessions] = useState([]);
 
-  if (user != null) {
-    console.log(" user.province: " + user.province);   
-  }
+  // Tutor-specific states
+  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     if (user?.userType === 'student') {
       fetchTutorsByProvince(user.province);
       fetchUpcomingSessions(user.id);
+    } else if (user?.userType === 'tutor') {
+      fetchEnrolledStudents(user.id);
     }
   }, [user]);
 
   const fetchTutorsByProvince = async (province) => {
-    console.log("Student's province:", province);
-
-    // Replace this with API call
     const dummyTutors = [
       { id: '1', name: 'John Doe', province: 'Amman', sessions: ['Mon 10AM', 'Wed 2PM'] },
       { id: '2', name: 'Jane Smith', province: 'Amman', sessions: ['Tue 11AM', 'Thu 1PM'] },
@@ -34,18 +33,40 @@ const Home = () => {
       (tutor) => tutor.province.toLowerCase() === province?.toLowerCase()
     );
 
-    console.log("Filtered tutors:", filteredTutors);
     setTutors(filteredTutors);
   };
 
   const fetchUpcomingSessions = async (studentId) => {
-    // Replace this with API call
     const dummySessions = [
       { id: 's1', time: '2025-04-22 10:00 AM', tutor: 'John Doe' },
       { id: 's2', time: '2025-04-24 2:00 PM', tutor: 'Jane Smith' },
     ];
 
     setUpcomingSessions(dummySessions);
+  };
+
+  const fetchEnrolledStudents = async (tutorId) => {
+    const dummyStudents = [
+      {
+        id: 'stu1',
+        name: 'Ahmad Ali',
+        subjects: ['Math', 'Physics'],
+        sessions: [
+          { subject: 'Math', time: 'Mon 10AM' },
+          { subject: 'Physics', time: 'Wed 2PM' },
+        ],
+      },
+      {
+        id: 'stu2',
+        name: 'Sara Nasser',
+        subjects: ['Biology'],
+        sessions: [
+          { subject: 'Biology', time: 'Thu 1PM' },
+        ],
+      },
+    ];
+
+    setStudents(dummyStudents);
   };
 
   const renderTutorProfile = () => (
@@ -57,6 +78,27 @@ const Home = () => {
       ))}
       <Button onPress={() => setSelectedTutor(null)} mode="outlined" style={styles.backButton}>
         Back to Tutors
+      </Button>
+    </View>
+  );
+
+  const renderStudentDetails = () => (
+    <View style={styles.section}>
+      <Text style={styles.title}>{selectedStudent.name}'s Details</Text>
+      <Text>Subjects enrolled with you:</Text>
+      {selectedStudent.subjects.map((subj, index) => (
+        <Text key={index}>- {subj}</Text>
+      ))}
+
+      <Text style={{ marginTop: 10 }}>Sessions:</Text>
+      {selectedStudent.sessions.map((session, index) => (
+        <Text key={index}>
+          - {session.subject}: {session.time}
+        </Text>
+      ))}
+
+      <Button onPress={() => setSelectedStudent(null)} mode="outlined" style={styles.backButton}>
+        Back to Students
       </Button>
     </View>
   );
@@ -118,7 +160,29 @@ const Home = () => {
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
-        {/* You can add tutor dashboard here */}
+
+        {selectedStudent ? (
+          renderStudentDetails()
+        ) : (
+          <>
+            <Text style={styles.subHeader}>Your Students:</Text>
+            {students.length > 0 ? (
+              <FlatList
+                data={students}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity onPress={() => setSelectedStudent(item)}>
+                    <Card style={styles.card}>
+                      <Card.Title title={item.name} subtitle={`Subjects: ${item.subjects.join(', ')}`} />
+                    </Card>
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <Text>You have no enrolled students yet.</Text>
+            )}
+          </>
+        )}
       </View>
     );
   }
