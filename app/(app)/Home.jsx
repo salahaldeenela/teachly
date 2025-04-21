@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet,te } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../context/authContext';
+import SearchAndFilter from '../../components/SearchAndFilter';
+
 
 const Home = () => {
+
+  const [searchQuery, setSearchQuery] = useState('');
+const [filters, setFilters] = useState({
+  price: 'none',
+  subject: '',
+  location: '',
+  rating: 'none',
+  gender: '',
+});
+
   const { logout, user } = useAuth();
   const [tutors, setTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [upcomingSessions, setUpcomingSessions] = useState([]);
-
   // Tutor-specific states
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -113,6 +124,13 @@ const Home = () => {
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
+{/* Search and Filter */}
+        <SearchAndFilter
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filters={filters}
+          setFilters={setFilters}
+        />
 
         {selectedTutor ? (
           renderTutorProfile()
@@ -160,6 +178,14 @@ const Home = () => {
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
+
+        {/* Search and Filter */}
+        <SearchAndFilter
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filters={filters}
+          setFilters={setFilters}
+        />
 
         {selectedStudent ? (
           renderStudentDetails()
