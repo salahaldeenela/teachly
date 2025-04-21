@@ -7,7 +7,7 @@ import SearchAndFilter from '../../components/SearchAndFilter';
 
 const Home = () => {
 
-  const [searchQuery, setSearchQuery] = useState('');
+const [searchQuery, setSearchQuery] = useState('');
 const [filters, setFilters] = useState({
   price: 'none',
   subject: '',
