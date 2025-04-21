@@ -1,49 +1,163 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { Button } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../context/authContext';
+
 const Home = () => {
   const { logout, user } = useAuth();
-  if(user != null){
+  const [tutors, setTutors] = useState([]);
+  const [selectedTutor, setSelectedTutor] = useState(null);
+  const [upcomingSessions, setUpcomingSessions] = useState([]);
 
-  console.log("UserData : " + user.userType);
+  if (user != null) {
+    console.log(" user.province: " + user.province);   
+  }
 
-  if(user.userType == "student")
-  return (
-    <View>
-      <Text>Student</Text>
-      <Button
-        onPress={() => {
-          logout();
-        }}
-        mode="contained"
-      >
-        Click Mes
+  useEffect(() => {
+    if (user?.userType === 'student') {
+      fetchTutorsByProvince(user.province);
+      fetchUpcomingSessions(user.id);
+    }
+  }, [user]);
+
+  const fetchTutorsByProvince = async (province) => {
+    console.log("Student's province:", province);
+
+    // Replace this with API call
+    const dummyTutors = [
+      { id: '1', name: 'John Doe', province: 'Amman', sessions: ['Mon 10AM', 'Wed 2PM'] },
+      { id: '2', name: 'Jane Smith', province: 'Amman', sessions: ['Tue 11AM', 'Thu 1PM'] },
+      { id: '3', name: 'Alice Brown', province: 'Amman', sessions: ['Fri 9AM'] },
+    ];
+
+    const filteredTutors = dummyTutors.filter(
+      (tutor) => tutor.province.toLowerCase() === province?.toLowerCase()
+    );
+
+    console.log("Filtered tutors:", filteredTutors);
+    setTutors(filteredTutors);
+  };
+
+  const fetchUpcomingSessions = async (studentId) => {
+    // Replace this with API call
+    const dummySessions = [
+      { id: 's1', time: '2025-04-22 10:00 AM', tutor: 'John Doe' },
+      { id: 's2', time: '2025-04-24 2:00 PM', tutor: 'Jane Smith' },
+    ];
+
+    setUpcomingSessions(dummySessions);
+  };
+
+  const renderTutorProfile = () => (
+    <View style={styles.section}>
+      <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+      <Text>Available Sessions:</Text>
+      {selectedTutor.sessions.map((session, idx) => (
+        <Text key={idx}>- {session}</Text>
+      ))}
+      <Button onPress={() => setSelectedTutor(null)} mode="outlined" style={styles.backButton}>
+        Back to Tutors
       </Button>
-      {/* The button will be visible now */}
     </View>
   );
 
+  if (!user) return null;
 
-  if(user.userType == "tutor")
+  if (user.userType === 'student') {
     return (
-      <View>
-        <Text>Tutor</Text>
-        <Button
-          onPress={() => {
-            logout();
-          }}
-          mode="contained"
-        >
-          Click Mes
+      <View style={styles.container}>
+        <Text style={styles.header}>Welcome Student</Text>
+
+        <Button onPress={logout} mode="contained" style={styles.logoutButton}>
+          Logout
         </Button>
-        {/* The button will be visible now */}
+
+        {selectedTutor ? (
+          renderTutorProfile()
+        ) : (
+          <>
+            <Text style={styles.subHeader}>Tutors near you ({user.province}):</Text>
+            {tutors.length > 0 ? (
+              <FlatList
+                data={tutors}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity onPress={() => setSelectedTutor(item)}>
+                    <Card style={styles.card}>
+                      <Card.Title title={item.name} subtitle={`Province: ${item.province}`} />
+                    </Card>
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <Text>No tutors found in your area.</Text>
+            )}
+
+            <View style={styles.section}>
+              <Text style={styles.subHeader}>Closest Upcoming Sessions:</Text>
+              {upcomingSessions.length > 0 ? (
+                upcomingSessions.map((session) => (
+                  <Text key={session.id}>
+                    {session.time} with {session.tutor}
+                  </Text>
+                ))
+              ) : (
+                <Text>No upcoming sessions.</Text>
+              )}
+            </View>
+          </>
+        )}
       </View>
     );
-
-
   }
 
+  if (user.userType === 'tutor') {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>Welcome Tutor</Text>
+        <Button onPress={logout} mode="contained" style={styles.logoutButton}>
+          Logout
+        </Button>
+        {/* You can add tutor dashboard here */}
+      </View>
+    );
+  }
+
+  return null;
 };
 
 export default Home;
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+    flex: 1,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  subHeader: {
+    fontSize: 18,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  card: {
+    marginBottom: 10,
+    padding: 10,
+  },
+  section: {
+    marginTop: 20,
+  },
+  logoutButton: {
+    marginBottom: 20,
+  },
+  backButton: {
+    marginTop: 10,
+  },
+  title: {
+    fontSize: 20,
+    marginBottom: 10,
+  },
+});
