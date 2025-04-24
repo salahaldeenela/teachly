@@ -5,17 +5,28 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { Button } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialIcons } from '@expo/vector-icons';
+import { provincesData } from '../assets/data/data';
 
-const subjects = ['Math', 'Science', 'English', 'History'];
-const locations = ['Amman', 'Irbid', 'Zarqa', 'Aqaba'];
+const subjects = [
+  'Arabic', 'Math', 'Physics', 'Science', 'Social Studies', 'Chemistry',
+  'Biology', 'History', 'Geography', 'Islamic Studies', 'English', 'Economics',
+];
 
-const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) => {
+const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
   const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    price: 'none',
+    subject: '',
+    province: '',
+    rating: 0,
+    gender: '',
+    grade: '',
+  });
 
   const handleClearFilters = () => {
     setFilters({
@@ -24,8 +35,11 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
       location: '',
       rating: 0,
       gender: '',
-      free: false,
+      grade: '',
     });
+    setSearchQuery('');
+    setShowFilters(false);
+    onResultsFiltered(tutorsData); // reset to full list
   };
 
   const toggleGender = (selectedGender) => {
@@ -35,28 +49,69 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
     }));
   };
 
-  const toggleFree = () => {
-    setFilters((prev) => ({
-      ...prev,
-      free: !prev.free,
-      price: !prev.free ? 'free' : 'none',
-    }));
+  const handleSearchQuery = () => {
+    const filtered = tutorsData.filter((tutor) => {
+      return tutor.name.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    onResultsFiltered(filtered);
+  };
+
+  const handleApplyFilters = () => {
+    setShowFilters(false);
+    const filtered = tutorsData.filter((tutor) => {
+      const matchesSubject =
+        !filters.subject || tutor.subjects.includes(filters.subject);
+
+      const matchesLocation =
+        !filters.province || tutor.province === filters.province;
+
+      const matchesGender =
+        !filters.gender || tutor.gender === filters.gender;
+
+      const matchesRating =
+        !filters.rating || tutor.rating >= filters.rating;
+
+      const matchesGrade =
+        !filters.grade ||
+        tutor.teachesGrades.includes(filters.grade);
+
+      return (
+        matchesSubject &&
+        matchesLocation &&
+        matchesGender &&
+        matchesRating &&
+        matchesGrade
+      );
+    });
+
+    if (filters.price === 'low') {
+      filtered.sort((a, b) => a.price - b.price);
+    }
+
+    onResultsFiltered(filtered);
   };
 
   return (
     <View>
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-
-      <TouchableOpacity onPress={() => setShowFilters((prev) => !prev)}>
-        <Text style={styles.toggleFiltersText}>
-          {showFilters ? 'Hide Filters ▲' : 'Show Filters ▼'}
-        </Text>
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <TextInput
+          style={[styles.searchBar, { flex: 1 }]}
+          placeholder="Search"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity onPress={handleSearchQuery} style={{ marginLeft: 8 }}>
+          <MaterialIcons name="search" size={28} color="#007bff" />
+        </TouchableOpacity>
+        
+        {/* Filter Icon */}
+        <TouchableOpacity
+          style={{ marginLeft: 8 }}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <MaterialIcons name={showFilters ? 'filter-list' : 'filter-alt'} size={28} color="#007bff" />
+        </TouchableOpacity>
+      </View>
 
       {showFilters && (
         <View style={styles.filtersContainer}>
@@ -76,15 +131,33 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
             </Picker>
           </View>
 
-          {/* Location Dropdown */}
-          <Text>Location:</Text>
+          {/* Grade Dropdown */}
+          <Text>Grade:</Text>
           <View style={styles.dropdown}>
             <Picker
-              selectedValue={filters.location}
-              onValueChange={(value) => setFilters({ ...filters, location: value })}
+              selectedValue={filters.grade}
+              onValueChange={(value) => setFilters({ ...filters, grade: value })}
             >
-              <Picker.Item label="Select location" value="" />
-              {locations.map((loc) => (
+              <Picker.Item label="Select grade" value="" />
+              {Array.from({ length: 12 }, (_, i) => (
+                <Picker.Item
+                  key={i + 1}
+                  label={`Grade ${i + 1}`}
+                  value={(i + 1).toString()}
+                />
+              ))}
+            </Picker>
+          </View>
+
+          {/* Province Dropdown */}
+          <Text>Province:</Text>
+          <View style={styles.dropdown}>
+            <Picker
+              selectedValue={filters.province}
+              onValueChange={(value) => setFilters({ ...filters, province: value })}
+            >
+              <Picker.Item label="Select province" value="" />
+              {provincesData.map((loc) => (
                 <Picker.Item label={loc} value={loc} key={loc} />
               ))}
             </Picker>
@@ -94,45 +167,24 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
           <Text>Gender:</Text>
           <View style={styles.genderContainer}>
             <TouchableOpacity
-              style={[
-                styles.genderButton,
-                filters.gender === 'male' && styles.selectedButton,
-              ]}
+              style={[styles.genderButton, filters.gender === 'male' && styles.selectedButton]}
               onPress={() => toggleGender('male')}
             >
               <Text style={styles.genderText}>Male</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.genderButton,
-                filters.gender === 'female' && styles.selectedButton,
-              ]}
+              style={[styles.genderButton, filters.gender === 'female' && styles.selectedButton]}
               onPress={() => toggleGender('female')}
             >
               <Text style={styles.genderText}>Female</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Free Option */}
-          <Text>Free Option:</Text>
-          <TouchableOpacity
-            style={[
-              styles.freeButton,
-              filters.free && styles.selectedButton,
-            ]}
-            onPress={toggleFree}
-          >
-            <Text style={styles.genderText}>Free</Text>
-          </TouchableOpacity>
-
           {/* Rating Stars */}
           <Text>Minimum Rating:</Text>
           <View style={styles.starContainer}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setFilters({ ...filters, rating: star })}
-              >
+              <TouchableOpacity key={star} onPress={() => setFilters({ ...filters, rating: star })}>
                 <MaterialIcons
                   name={star <= filters.rating ? 'star' : 'star-border'}
                   size={32}
@@ -142,7 +194,7 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
             ))}
           </View>
 
-          {/* Sorting */}
+          {/* Sorting Buttons */}
           <Button
             mode="outlined"
             onPress={() => setFilters({ ...filters, price: 'low', rating: 0 })}
@@ -156,6 +208,9 @@ const SearchAndFilter = ({ searchQuery, setSearchQuery, filters, setFilters }) =
             style={styles.button}
           >
             Sort by Highest Rating
+          </Button>
+          <Button onPress={handleApplyFilters} mode="contained" style={styles.button}>
+            Apply Filters
           </Button>
           <Button mode="text" onPress={handleClearFilters}>
             Clear Filters
@@ -174,14 +229,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 10,
     borderRadius: 8,
-    marginBottom: 10,
-  },
-  toggleFiltersText: {
-    color: '#007bff',
-    marginBottom: 10,
-    textAlign: 'right',
-    marginRight: 10,
-    fontWeight: 'bold',
   },
   filtersContainer: {
     padding: 10,
@@ -219,14 +266,6 @@ const styles = StyleSheet.create({
   },
   genderText: {
     fontWeight: 'bold',
-  },
-  freeButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
-    alignItems: 'center',
   },
   starContainer: {
     flexDirection: 'row',

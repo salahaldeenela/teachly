@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet,te } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet,ScrollView} from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../context/authContext';
 import SearchAndFilter from '../../components/SearchAndFilter';
+import { FakeTutors } from '../../assets/Fakedata';
 
 
 const Home = () => {
-
-const [searchQuery, setSearchQuery] = useState('');
-const [filters, setFilters] = useState({
-  price: 'none',
-  subject: '',
-  location: '',
-  rating: 'none',
-  gender: '',
-});
 
   const { logout, user } = useAuth();
   const [tutors, setTutors] = useState([]);
@@ -29,6 +21,7 @@ const [filters, setFilters] = useState({
       fetchTutorsByProvince(user.province);
       fetchUpcomingSessions(user.id);
     } else if (user?.userType === 'tutor') {
+      fetchTutorsByProvince(user.province);
       fetchEnrolledStudents(user.id);
     }
   }, [user]);
@@ -50,6 +43,7 @@ const [filters, setFilters] = useState({
   const fetchUpcomingSessions = async (studentId) => {
     const dummySessions = [
       { id: 's1', time: '2025-04-22 10:00 AM', tutor: 'John Doe' },
+    // Set the tutors state with the filtered tutors
       { id: 's2', time: '2025-04-24 2:00 PM', tutor: 'Jane Smith' },
     ];
 
@@ -113,23 +107,21 @@ const [filters, setFilters] = useState({
       </Button>
     </View>
   );
-
   if (!user) return null;
 
   if (user.userType === 'student') {
     return (
       <View style={styles.container}>
+        
         <Text style={styles.header}>Welcome Student</Text>
 
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
-{/* Search and Filter */}
+         {/* Search and Filter */}
         <SearchAndFilter
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filters={filters}
-          setFilters={setFilters}
+           tutorsData={FakeTutors}
+           onResultsFiltered={(filtered) => setTutors(filtered)}
         />
 
         {selectedTutor ? (
@@ -167,6 +159,7 @@ const [filters, setFilters] = useState({
             </View>
           </>
         )}
+        
       </View>
     );
   }
@@ -181,10 +174,8 @@ const [filters, setFilters] = useState({
 
         {/* Search and Filter */}
         <SearchAndFilter
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filters={filters}
-          setFilters={setFilters}
+          tutorsData={FakeTutors}
+          onResultsFiltered={(filtered) => setTutors(filtered)}
         />
 
         {selectedStudent ? (
