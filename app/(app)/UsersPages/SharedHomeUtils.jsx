@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet,ScrollView } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { getDocs, collection } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
+import { db } from '../../firebaseConfig';
 
 export const fetchTutors = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, 'users'));
     const allUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const tutorsOnly = allUsers.filter(user => user.userType === 'tutor');
-    console.log(tutorsOnly);
+   // console.log(tutorsOnly);
     return tutorsOnly;
   } catch (error) {
     console.error('Error fetching tutors:', error);
