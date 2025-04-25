@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet,ScrollView } from 'react-native';
 import { Button, Card } from 'react-native-paper';
-import { useAuth } from '../../context/authContext';
-import SearchAndFilter from '../../components/SearchAndFilter';
+import { useAuth } from '../../../context/authContext';
+import SearchAndFilter from '../../../components/SearchAndFilter';
 import { fetchTutors, fetchUpcomingSessions } from './SharedHomeUtils';
 
 const StudentHomePage = () => {
