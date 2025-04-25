@@ -39,7 +39,7 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
     });
     setSearchQuery('');
     setShowFilters(false);
-    onResultsFiltered(tutorsData); // reset to full list
+    onResultsFiltered(tutorsData);
   };
 
   const toggleGender = (selectedGender) => {
