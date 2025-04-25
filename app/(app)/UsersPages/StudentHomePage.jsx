@@ -7,6 +7,7 @@ import { fetchTutors, fetchUpcomingSessions } from './SharedHomeUtils';
 
 const StudentHomePage = () => {
   const { logout, user } = useAuth();
+  const [alltutors, setallTutors] = useState([]);
   const [tutors, setTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [upcomingSessions, setUpcomingSessions] = useState([]);
@@ -38,15 +39,25 @@ const StudentHomePage = () => {
   
 
   useEffect(() => {
-    console.log('User object:', user);
     if (user != null) {
-      console.log('Fetching tutors...');
-      fetchTutors().then(setTutors);
+      fetchTutors().then((data) => {
+        setallTutors(data);
+        setTutors(data); 
+      });
       fetchUpcomingSessions(user.id).then(setUpcomingSessions);
     }
   }, [user]);
+  
 
    
+  if (selectedTutor) {
+    return (
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.container}>{renderTutorProfile()}</View>
+      </ScrollView>
+    );
+  }
+  
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
@@ -54,45 +65,38 @@ const StudentHomePage = () => {
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
-
-        <SearchAndFilter tutorsData={tutors} onResultsFiltered={setTutors} />
-
-
-
-        {selectedTutor ? (
-          renderTutorProfile()
+  
+        <SearchAndFilter tutorsData={alltutors} onResultsFiltered={setTutors} />
+  
+        <Text style={styles.subHeader}>Tutors near you ({user.province}):</Text>
+        {tutors.length > 0 ? (
+          tutors.map((item) => (
+            <TouchableOpacity key={item.id} onPress={() => setSelectedTutor(item)}>
+              <Card style={styles.card}>
+                <Card.Title title={item.name} subtitle={`Province: ${item.province}`} />
+              </Card>
+            </TouchableOpacity>
+          ))
         ) : (
-          <>
-            <Text style={styles.subHeader}>Tutors near you ({user.province}):</Text>
-            {tutors.length > 0 ? (
-              tutors.map((item) => (
-                <TouchableOpacity key={item.id} onPress={() => setSelectedTutor(item)}>
-                  <Card style={styles.card}>
-                    <Card.Title title={item.name} subtitle={`Province: ${item.province}`} />
-                  </Card>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <Text>No tutors found in your area.</Text>
-            )}
-
-            <View style={styles.section}>
-              <Text style={styles.subHeader}>Closest Upcoming Sessions:</Text>
-              {upcomingSessions.length > 0 ? (
-                upcomingSessions.map((session) => (
-                  <Text key={session.id}>
-                    {session.time} with {session.tutor}
-                  </Text>
-                ))
-              ) : (
-                <Text>No upcoming sessions.</Text>
-              )}
-            </View>
-          </>
+          <Text>No tutors found in your area.</Text>
         )}
+  
+        <View style={styles.section}>
+          <Text style={styles.subHeader}>Closest Upcoming Sessions:</Text>
+          {upcomingSessions.length > 0 ? (
+            upcomingSessions.map((session) => (
+              <Text key={session.id}>
+                {session.time} with {session.tutor}
+              </Text>
+            ))
+          ) : (
+            <Text>No upcoming sessions.</Text>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
+  
 };
 
 export default StudentHomePage;
