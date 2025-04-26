@@ -87,7 +87,7 @@ const TutorHomePage = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.header}>Welcome Student</Text>
+        <Text style={styles.header}>Welcome Tutor</Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
