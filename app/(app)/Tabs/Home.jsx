@@ -1,7 +1,7 @@
 import React from 'react';
-import {useAuth} from '../../context/authContext';
-import StudentHomePage from './UsersPages/StudentHomePage';
-import TutorHomePage from './UsersPages/TutorHomePage';
+import {useAuth} from '../../../context/authContext';
+import StudentHomePage from '../UsersPages/StudentHomePage';
+import TutorHomePage from '../UsersPages/TutorHomePage';
 
 const Home = () => {
   const { user } = useAuth();

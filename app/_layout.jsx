@@ -13,7 +13,7 @@ const Mainlayout = () => {
     const inApp = segments[0] === '(app)';
 
     if (isAuth && !inApp && pathname !== '/Home') {
-      router.replace('/Home');
+      router.replace('/Tabs/Home');
     } else if (
       !isAuth &&
       pathname !== '/signIn' &&
