@@ -64,12 +64,6 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
   const handleApplyFilters = () => {
     setShowFilters(false);
     const filtered = tutorsData.filter((tutor) => {
-      // const matchesSubject =
-      //   !filters.subject || tutor.subjects.includes(filters.subject);
-
-      // const matchesGrade =
-      //   !filters.grade ||
-      //   tutor.teachesGrades.includes(filters.grade);
       const matchesGrade =
       !filters.grade ||
       Object.keys(tutor.grade).includes(filters.grade);
