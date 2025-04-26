@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../../context/authContext';
-
-// Import your two profile components
 import StudentProfile from '../UsersPages/StudentProfile';
 import TutorProfile from '../UsersPages/TutorProfile';
 
 const Profile = () => {
   const { user } = useAuth();
+
 
   if (!user) {
     return (
