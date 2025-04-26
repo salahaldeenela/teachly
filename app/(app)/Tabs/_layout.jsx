@@ -29,6 +29,14 @@ const _layout = () => {
           ),
         }}
       />
+      <Tabs.Screen
+        name="Profile"
+        options={{
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 };
