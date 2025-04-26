@@ -35,9 +35,14 @@ const TutorProfile = ({ user }) => {
 
         if (docSnap.exists()) {
           const tutorData = docSnap.data();
-          if (!Array.isArray(tutorData.teaching)) {
-            tutorData.teaching = [];
+          if (tutorData.grade && typeof tutorData.grade === 'object' && !Array.isArray(tutorData.grade)) {
+            // Convert the map into an array of { grade, subjects }
+            tutorData.grade = Object.entries(tutorData.grade).map(([grade, subjects]) => ({
+              grade,
+              subjects,
+            }));
           }
+          
           setTutor(tutorData);
         } else {
           console.log('No such tutor!');
@@ -72,8 +77,8 @@ const TutorProfile = ({ user }) => {
       return;
     }
 
-    const newTeaching = [...tutor.teaching, { grade: selectedGrade, subjects: selectedSubjects }];
-    setTutor({ ...tutor, teaching: newTeaching });
+    const newGrade = [...tutor.grade, { grade: selectedGrade, subjects: selectedSubjects }];
+    setTutor({ ...tutor, grade: newGrade });
 
     setSelectedGrade('');
     setSelectedSubjects([]);
@@ -81,8 +86,8 @@ const TutorProfile = ({ user }) => {
   };
 
   const handleDeleteGrade = (gradeToDelete) => {
-    const updatedTeaching = tutor.teaching.filter(g => g.grade !== gradeToDelete);
-    setTutor({ ...tutor, teaching: updatedTeaching });
+    const updatedGrade = tutor.grade.filter(g => g.grade !== gradeToDelete);
+    setTutor({ ...tutor, grade: updatedGrade });
   };
 
   const handleToggleSubject = (subject) => {
@@ -176,7 +181,7 @@ const TutorProfile = ({ user }) => {
         </TouchableOpacity>
       </View>
 
-      {tutor.teaching.map((g, idx) => (
+      {tutor.grade.map((g, idx) => (
         <View key={idx} style={styles.gradeItem}>
           <Text style={styles.gradeTitle}>{g.grade}</Text>
           <Text>Subjects: {g.subjects.join(', ')}</Text>
