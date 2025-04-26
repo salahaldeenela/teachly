@@ -15,7 +15,12 @@ const subjects = [
   'Arabic', 'Math', 'Physics', 'Science', 'Social Studies', 'Chemistry',
   'Biology', 'History', 'Geography', 'Islamic Studies', 'English', 'Economics',
 ];
-
+const gradesOptions = [
+  "Grade 1-3",
+  "Grade 4-6",
+  "Grade 7-9",
+  "Grade 10-12",
+];
 const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,8 +64,20 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
   const handleApplyFilters = () => {
     setShowFilters(false);
     const filtered = tutorsData.filter((tutor) => {
-      const matchesSubject =
-        !filters.subject || tutor.subjects.includes(filters.subject);
+      // const matchesSubject =
+      //   !filters.subject || tutor.subjects.includes(filters.subject);
+
+      // const matchesGrade =
+      //   !filters.grade ||
+      //   tutor.teachesGrades.includes(filters.grade);
+      const matchesGrade =
+      !filters.grade ||
+      Object.keys(tutor.grade).includes(filters.grade);
+
+    const matchesSubject =
+      !filters.subject ||
+      Object.values(tutor.grade).some((g) => g.includes(filters.subject));
+      
 
       const matchesLocation =
         !filters.province || tutor.province === filters.province;
@@ -70,10 +87,6 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
 
       const matchesRating =
         !filters.rating || tutor.rating >= filters.rating;
-
-      const matchesGrade =
-        !filters.grade ||
-        tutor.teachesGrades.includes(filters.grade);
 
       return (
         matchesSubject &&
@@ -139,11 +152,11 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
               onValueChange={(value) => setFilters({ ...filters, grade: value })}
             >
               <Picker.Item label="Select grade" value="" />
-              {Array.from({ length: 12 }, (_, i) => (
+              {Array.from({ length: 4 }, (_, i) => (
                 <Picker.Item
                   key={i + 1}
-                  label={`Grade ${i + 1}`}
-                  value={(i + 1).toString()}
+                  label={gradesOptions[i]}
+                  value={gradesOptions[i]}
                 />
               ))}
             </Picker>
