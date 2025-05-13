@@ -45,3 +45,35 @@ export const fetchEnrolledStudents = async (tutorId) => {
 };
 
 
+export const fetchAvailableSessions = async (tutorId = null) => {
+  let query = collection(db, 'sessions');
+  if (tutorId) {
+    query = query.where('tutorId', '==', tutorId);
+  }
+  query = query.where('status', '==', 'open');
+  
+  const snapshot = await getDocs(query);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// For tutors to see their sessions
+export const fetchTutorSessions = async (tutorId) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'sessions'),
+      where('tutorId', '==', tutorId)
+    )
+  );
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// For students to see their booked sessions
+export const fetchStudentSessions = async (studentId) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'sessions'),
+      where('studentId', '==', studentId)
+    )
+  );
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
