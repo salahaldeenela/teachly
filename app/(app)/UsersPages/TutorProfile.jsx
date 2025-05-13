@@ -523,6 +523,21 @@ const TutorProfile = ({ user }) => {
         />
       </View>
 
+      {/* Display Reviews */}
+      <View style={styles.reviewList}>
+        <Text style={styles.sectionTitle}>Reviews</Text>
+        {tutor.reviews?.length > 0 ? (
+          tutor.reviews.map((r, index) => (
+            <View key={index} style={styles.reviewItem}>
+              <Text style={styles.reviewRating}>⭐ {r.rating}/5</Text>
+              <Text style={styles.reviewComment}>{r.comment}</Text>
+            </View>
+          ))
+        ) : (
+          <Text>No reviews yet.</Text>
+        )}
+      </View>
+
       {/* Save Button */}
       <Button 
         title={saving ? "Saving..." : "Save All Changes"} 
@@ -722,6 +737,28 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#555',
   },
+
+reviewList: {
+  borderTopWidth: 1,
+  borderTopColor: '#ccc',
+  paddingTop: 10,
+},
+
+reviewItem: {
+  marginBottom: 10,
+  backgroundColor: '#f5f5f5',
+  padding: 10,
+  borderRadius: 8,
+},
+
+reviewRating: {
+  fontWeight: 'bold',
+  marginBottom: 4,
+},
+
+reviewComment: {
+  marginBottom: 4,
+},
 });
 
 export default TutorProfile;
