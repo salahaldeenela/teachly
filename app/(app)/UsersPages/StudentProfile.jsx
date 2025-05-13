@@ -4,6 +4,7 @@ import { Picker } from '@react-native-picker/picker'; // <--- ADD this!
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const StudentProfile = ({ user }) => {
   const [student, setStudent] = useState(null);
@@ -54,10 +55,6 @@ const StudentProfile = ({ user }) => {
     }
   };
 
-  const handleImagePick = async () => {
-    // Add your ImagePicker logic here if needed
-  };
-
   const handlePhoneNumberChange = (text) => {
     const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 10);
     setStudent({ ...student, phoneNumber: cleanedText });
@@ -81,18 +78,17 @@ const StudentProfile = ({ user }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Picture */}
-      <TouchableOpacity onPress={handleImagePick}>
-        {student.profilePicture ? (
-          <Image source={{ uri: student.profilePicture }} style={styles.profileImage} />
-        ) : (
-          <View style={styles.profileImagePlaceholder}>
-            <Text>Upload Photo</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-
-      <Text style={styles.title}>Student Profile</Text>
+      {/* Profile Header */}
+            <View style={styles.profileHeader}>
+              <View style={styles.profileImagePlaceholder}>
+                   <FontAwesome5 
+                    name={student.gender === 'female' ? 'user-alt' : 'user'} 
+                    size={60} 
+                    color="#555" 
+                   />
+                </View>
+              <Text style={styles.title}>Student Profile</Text>
+            </View>
 
       {/* General Info */}
       <TextInput
@@ -178,11 +174,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     padding: 8,
   },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignSelf: 'center',
+  profileHeader: {
+    alignItems: 'center',
     marginBottom: 20,
   },
   profileImagePlaceholder: {

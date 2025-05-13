@@ -6,7 +6,6 @@ import {
   Button, 
   StyleSheet, 
   ActivityIndicator, 
-  Image, 
   TouchableOpacity, 
   ScrollView, 
   Alert 
@@ -15,6 +14,7 @@ import { Picker } from '@react-native-picker/picker';
 import { getDoc, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const TutorProfile = ({ user }) => {
   // State management
@@ -267,18 +267,13 @@ const TutorProfile = ({ user }) => {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
-        <TouchableOpacity onPress={() => {}} disabled={saving}>
-          {tutor.profilePicture ? (
-            <Image 
-              source={{ uri: tutor.profilePicture }} 
-              style={styles.profileImage} 
-            />
-          ) : (
-            <View style={styles.profileImagePlaceholder}>
-              <Text>Upload Photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.profileImagePlaceholder}>
+             <FontAwesome5 
+              name={tutor.gender === 'female' ? 'user-alt' : 'user'} 
+              size={60} 
+              color="#555" 
+             />
+          </View>
         <Text style={styles.title}>Tutor Profile</Text>
       </View>
 
