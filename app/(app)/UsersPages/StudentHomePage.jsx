@@ -189,7 +189,7 @@ const StudentHomePage = () => {
   
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
   
-        <Text style={styles.subHeader}>Tutors near you ({user?.province || 'your area'}):</Text>
+        <Text style={styles.subHeader}>Explor Tutors ({user?.province || 'your area'}):</Text>
         
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />

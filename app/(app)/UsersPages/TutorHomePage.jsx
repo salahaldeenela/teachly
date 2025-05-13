@@ -94,7 +94,7 @@ const TutorHomePage = () => {
   
         <SearchAndFilter tutorsData={alltutors} onResultsFiltered={setTutors} />
   
-        <Text style={styles.subHeader}>Tutors near you ({user.province}):</Text>
+        <Text style={styles.subHeader}>Explor Tutors ({user?.province || 'your area'}):</Text>
         {tutors.length > 0 ? (
           tutors.map((item) => (
             <TouchableOpacity key={item.id} onPress={() => setSelectedTutor(item)}>
