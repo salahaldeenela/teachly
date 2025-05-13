@@ -5,19 +5,44 @@ import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
 import { fetchTutors, fetchUpcomingSessions } from './SharedHomeUtils';
 import { doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
+import { db, auth } from '../../../firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const StudentHomePage = () => {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
+  const [user, setUser] = useState(null);
   const [allTutors, setAllTutors] = useState([]);
   const [filteredTutors, setFilteredTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tutorsLoading, setTutorsLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
+  // Sync auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName,
+          email: firebaseUser.email,
+          // Add other user properties you need
+        });
+      } else {
+        setUser(null);
+      }
+      setAuthChecked(true);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Load data when user is authenticated
   useEffect(() => {
     const loadData = async () => {
+      if (!user?.uid) return;
+      
       try {
         setTutorsLoading(true);
         
@@ -27,7 +52,7 @@ const StudentHomePage = () => {
         setFilteredTutors(tutorsData);
         
         // Load upcoming sessions
-        const sessions = await fetchUpcomingSessions(user.id);
+        const sessions = await fetchUpcomingSessions(user.uid);
         setUpcomingSessions(sessions);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -37,25 +62,41 @@ const StudentHomePage = () => {
       }
     };
 
-    if (user) loadData();
+    loadData();
   }, [user]);
 
   const handleBookSession = async (tutorId, sessionId) => {
     try {
       setLoading(true);
       
+      // Get fresh auth state
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be logged in to book a session');
+      }
+
       // Create references
       const tutorRef = doc(db, 'users', tutorId);
-      const studentRef = doc(db, 'users', user.id);
+      const studentRef = doc(db, 'users', currentUser.uid);
       
       // Get current data
-      const tutorDoc = await getDoc(tutorRef);
+      const [tutorDoc, studentDoc] = await Promise.all([
+        getDoc(tutorRef),
+        getDoc(studentRef)
+      ]);
+
       if (!tutorDoc.exists()) throw new Error('Tutor not found');
       
       const tutorData = tutorDoc.data();
       const sessionToBook = tutorData.sessions?.find(s => s.id === sessionId);
       if (!sessionToBook) throw new Error('Session not found');
-      
+
+      // Check for duplicate booking
+      const studentData = studentDoc.data() || {};
+      if (studentData.bookedSessions?.some(s => s.id === sessionId)) {
+        throw new Error('You have already booked this session');
+      }
+
       // Prepare updates
       const batch = writeBatch(db);
       
@@ -68,9 +109,9 @@ const StudentHomePage = () => {
       const bookedSession = {
         ...sessionToBook,
         tutorId,
-        tutorName: tutorData.name,
-        studentId: user.id,
-        studentName: user.name,
+        tutorName: tutorData.displayName || tutorData.name || 'Tutor',
+        studentId: currentUser.uid,
+        studentName: currentUser.displayName || 'Student',
         status: 'booked',
         bookedAt: new Date().toISOString()
       };
@@ -78,8 +119,7 @@ const StudentHomePage = () => {
       batch.update(studentRef, {
         bookedSessions: arrayUnion(bookedSession)
       });
-      
-      // Execute batch
+
       await batch.commit();
       
       // Update local state
@@ -111,7 +151,7 @@ const StudentHomePage = () => {
         
         <Text style={styles.subHeader}>Available Sessions:</Text>
         
-        {selectedTutor.sessions?.length > 0 ? (
+        {selectedTutor.sessions?.filter(s => s.status === 'available').length > 0 ? (
           selectedTutor.sessions
             .filter(session => session.status === 'available')
             .map((session) => (
@@ -171,6 +211,14 @@ const StudentHomePage = () => {
     }
   };
 
+  if (!authChecked) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   if (selectedTutor) {
     return (
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -182,14 +230,14 @@ const StudentHomePage = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.header}>Welcome {user?.name || 'Student'}</Text>
+        <Text style={styles.header}>Welcome {user?.displayName || 'Student'}</Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
   
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
   
-        <Text style={styles.subHeader}>Explor Tutors ({user?.province || 'your area'}):</Text>
+        <Text style={styles.subHeader}>Explore Tutors ({user?.province || 'your area'}):</Text>
         
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
@@ -244,6 +292,11 @@ const styles = StyleSheet.create({
   container: { 
     padding: 20, 
     flex: 1 
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   header: { 
     fontSize: 24, 
