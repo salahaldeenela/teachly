@@ -186,6 +186,7 @@ const StudentHomePage = () => {
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Price: {selectedTutor.price || 'Not specified'} SAR/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
+        <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
         
         {/* Report & Reviews Section */}
       <Text style={styles.subHeader}>Report</Text>
