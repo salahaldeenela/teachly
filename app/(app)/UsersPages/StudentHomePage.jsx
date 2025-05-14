@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator,TextInput } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
@@ -17,7 +17,45 @@ const StudentHomePage = () => {
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tutorsLoading, setTutorsLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);const [reviewText, setReviewText] = useState('');
+  const [reviewRating, setReviewRating] = useState(0);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const submitReview = async () => {
+    if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
+      Alert.alert('Missing fields', 'Please choose a rating and write a review.');
+      return;
+    }
+    try {
+      setSubmittingReview(true);
+      const tutorRef = doc(db, 'users', selectedTutor.id);
+      const review = {
+        rating: parseInt(reviewRating),
+        comment: reviewText,
+        createdAt: new Date().toISOString(),
+      };
+
+      await updateDoc(tutorRef, {
+        reviews: arrayUnion(review),
+      });
+
+      // Update local state (optional if parent refreshes data)
+      setSelectedTutor(prev => ({
+        ...prev,
+        reviews: [...(prev.reviews || []), review],
+      }));
+
+      setReviewText('');
+      setReviewRating('');
+      Alert.alert('Review Submitted');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', 'Failed to submit review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
 
   // Sync auth state
   useEffect(() => {
@@ -149,6 +187,60 @@ const StudentHomePage = () => {
         <Text>Price: {selectedTutor.price || 'Not specified'} SAR/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         
+        {/* Report & Reviews Section */}
+      <Text style={styles.subHeader}>Report</Text>
+
+      {/* Report Button */}
+      <TouchableOpacity
+        style={styles.reportButton}
+        onPress={() => Alert.alert('Report Submitted', 'Thank you for your feedback.')}
+      >
+        <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
+      </TouchableOpacity>
+
+      {/* Submit Review */}
+      <Text style={styles.subHeader}>Leave a Review</Text>
+        <View style={styles.starsContainer}>
+          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Your Rating</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                <Text style={reviewRating >= star ? styles.filledStar : styles.emptyStar}>
+                  ★
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+      <TextInput
+        style={[styles.input, { height: 80 }]}
+        placeholder="Write your review here"
+        multiline
+        value={reviewText}
+        onChangeText={setReviewText}
+      />
+      <Button 
+        mode="contained" 
+        onPress={submitReview}
+        disabled={submittingReview}
+        style={{ marginVertical: 10 }}
+      >
+        {submittingReview ? 'Submitting...' : 'Submit Review'}
+      </Button>
+
+       {/* Reviews List */}
+      <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>Reviews</Text>
+      {selectedTutor.reviews?.length > 0 ? (
+        selectedTutor.reviews.map((review, index) => (
+          <View key={index} style={styles.reviewItem}>
+            <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
+            <Text style={styles.reviewComment}>{review.comment}</Text>
+          </View>
+        ))
+      ) : (
+        <Text>No reviews yet.</Text>
+      )}
         <Text style={styles.subHeader}>Available Sessions:</Text>
         
         {selectedTutor.sessions?.filter(s => s.status === 'available').length > 0 ? (
@@ -237,7 +329,7 @@ const StudentHomePage = () => {
   
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
   
-        <Text style={styles.subHeader}>Explore Tutors ({user?.province || 'your area'}):</Text>
+        <Text style={styles.subHeader}>Explore Tutors </Text>
         
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
@@ -339,7 +431,51 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 20
-  }
+  },
+  reportButton: {
+  backgroundColor: '#ff4d4d',
+  padding: 10,
+  borderRadius: 8,
+  marginBottom: 10,
+  alignItems: 'center',
+},
+reportButtonText: {
+  color: '#fff',
+  fontWeight: 'bold',
+},
+input: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 8,
+  padding: 10,
+  marginBottom: 10,
+},
+reviewItem: {
+  backgroundColor: '#f0f0f0',
+  padding: 10,
+  marginBottom: 10,
+  borderRadius: 8,
+},
+reviewRating: {
+  fontWeight: 'bold',
+},
+reviewComment: {
+  marginBottom: 4,
+},
+starsContainer: {
+  marginBottom: 10,
+},
+filledStar: {
+  fontSize: 30,
+  color: '#FFD700', // gold
+  marginHorizontal: 3,
+},
+emptyStar: {
+  fontSize: 30,
+  color: '#ccc', // gray
+  marginHorizontal: 3,
+},
+
 });
 
 export default StudentHomePage;
