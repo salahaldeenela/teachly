@@ -537,7 +537,24 @@ const TutorProfile = ({ user }) => {
           <Text>No reviews yet.</Text>
         )}
       </View>
-
+      {/* Average Rating */}
+      {tutor.reviews?.length > 0 && (
+        <View style={styles.averageRatingContainer}>
+          <Text style={styles.averageRatingLabel}>Rating:</Text>
+          <View style={styles.starsRow}>
+            {Array.from({ length: 5 }, (_, i) => {
+              const avgRating =
+                tutor.reviews.reduce((sum, r) => sum + Number(r.rating), 0) /
+                tutor.reviews.length;
+              return (
+                <Text key={i} style={styles.star}>
+                  {i < Math.floor(avgRating) ? '★' : '☆'}
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+      )}
       {/* Save Button */}
       <Button 
         title={saving ? "Saving..." : "Save All Changes"} 
@@ -759,6 +776,34 @@ reviewRating: {
 reviewComment: {
   marginBottom: 4,
 },
+averageRatingContainer: {
+  marginBottom: 12,
+  padding: 10,
+  backgroundColor: '#f9f9f9',
+  borderRadius: 8,
+  alignItems: 'flex-start',
+},
+averageRatingLabel: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 4,
+  color: '#333',
+},
+starsRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+star: {
+  fontSize: 45,
+  color: '#f5a623', // golden color
+  marginRight: 2,
+},
+avgValueText: {
+  fontSize: 16,
+  marginLeft: 8,
+  color: '#555',
+},
+
 });
 
 export default TutorProfile;

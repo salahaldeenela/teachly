@@ -173,14 +173,14 @@ const TutorHomePage = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.header}>Welcome {user?.name || 'Tutor'}</Text>
+        <Text style={styles.header}>Welcome {user?.username || 'Tutor'}</Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
   
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
   
-        <Text style={styles.subHeader}>Explore Tutors ({user?.province || 'your area'}):</Text>
+        <Text style={styles.subHeader}>Explore Tutors</Text>
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
         ) : filteredTutors.length > 0 ? (
