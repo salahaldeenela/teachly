@@ -79,8 +79,12 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
       const matchesGender =
         !filters.gender || tutor.gender === filters.gender;
 
+      const avgRating =
+        tutor.reviews && tutor.reviews.length > 0
+          ? tutor.reviews.reduce((sum, r) => sum + Number(r.rating), 0) / tutor.reviews.length
+          : 0;
       const matchesRating =
-        !filters.rating || tutor.rating >= filters.rating;
+        !filters.rating || avgRating >= filters.rating;
 
       return (
         matchesSubject &&
