@@ -19,23 +19,62 @@ export const fetchTutors = async () => {
 
 
 export const fetchEnrolledStudents = async (tutorId) => {
-  return [
-    {
-      id: 'stu1',
-      name: 'Ahmad Ali',
-      subjects: ['Math', 'Physics'],
-      sessions: [
-        { subject: 'Math', time: 'Mon 10AM' },
-        { subject: 'Physics', time: 'Wed 2PM' },
-      ],
-    },
-    {
-      id: 'stu2',
-      name: 'Sara Nasser',
-      subjects: ['Biology'],
-      sessions: [{ subject: 'Biology', time: 'Thu 1PM' }],
-    },
-  ];
+  try {
+    if (!tutorId) throw new Error('Tutor ID is required');
+
+    // Get all students who have sessions with this tutor
+    const studentsSnapshot = await getDocs(
+      query(
+        collection(db, 'users'),
+        where('userType', '==', 'student')
+      )
+    );
+
+    const enrolledStudents = studentsSnapshot.docs
+      .map(studentDoc => {
+        const studentData = studentDoc.data();
+        const allSessions = studentData.bookedSessions || [];
+        
+        // Filter sessions for this tutor
+        const tutorSessions = allSessions.filter(session => 
+          session.tutorId === tutorId && session.status === 'booked'
+        );
+
+        if (tutorSessions.length === 0) return null;
+
+        // Get unique subjects from sessions
+        const subjects = [...new Set(tutorSessions.map(s => s.subject))];
+        
+        // Format sessions data
+        const sessions = tutorSessions.map(session => ({
+          subject: session.subject,
+          time: session.time,
+          date: new Date(session.date),
+          duration: session.duration,
+          bookedAt: new Date(session.bookedAt),
+          sessionId: session.id
+        }));
+
+        return {
+          id: studentDoc.id,
+          name: studentData.name || studentData.username || 'Unknown Student',
+          email: studentData.email,
+          province: studentData.province,
+          subjects,
+          sessions,
+          totalSessions: tutorSessions.length,
+          lastSession: sessions.sort((a, b) => b.date - a.date)[0]
+        };
+      })
+      .filter(student => student !== null)
+      .sort((a, b) => b.totalSessions - a.totalSessions); // Sort by most active
+
+    return enrolledStudents;
+
+  } catch (error) {
+    console.error('Error fetching enrolled students:', error);
+    throw new Error('Failed to fetch enrolled students');
+  }
 };
 
 

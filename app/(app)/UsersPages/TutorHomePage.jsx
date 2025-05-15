@@ -94,42 +94,92 @@ const TutorHomePage = () => {
 
   const renderStudentDetails = () => {
     if (!selectedStudent) return null;
-
+  
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedStudent.name}'s Details</Text>
-        <Text>Contact: {selectedStudent.email || selectedStudent.phone || 'No contact info'}</Text>
         
-        <Text style={styles.subHeader}>Subjects enrolled with you:</Text>
-        {selectedStudent.subjects?.length > 0 ? (
-          selectedStudent.subjects.map((subj, index) => (
-            <Text key={index}>- {subj}</Text>
-          ))
-        ) : (
-          <Text>No subjects enrolled</Text>
-        )}
-
-        <Text style={[styles.subHeader, { marginTop: 10 }]}>Scheduled Sessions:</Text>
+        {/* Enhanced Contact Information */}
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Contact:</Text>
+          {selectedStudent.email ? (
+            <TextInput
+              style={styles.linkText}
+              editable={false}
+              value={selectedStudent.email}
+              onPress={() => Linking.openURL(`mailto:${selectedStudent.email}`)}
+            />
+          ) : (
+            <Text style={styles.detailValue}>No contact information</Text>
+          )}
+        </View>
+  
+        {/* Enhanced Subjects Display */}
+        <Text style={styles.subHeader}>Enrolled Subjects:</Text>
+        <View style={styles.chipContainer}>
+          {selectedStudent.subjects?.length > 0 ? (
+            selectedStudent.subjects.map((subj, index) => (
+              <Chip key={index} style={styles.subjectChip}>
+                {subj}
+              </Chip>
+            ))
+          ) : (
+            <Text style={styles.noItemsText}>No subjects enrolled</Text>
+          )}
+        </View>
+  
+        {/* Enhanced Sessions Display */}
+        <Text style={styles.subHeader}>Scheduled Sessions:</Text>
         {selectedStudent.sessions?.length > 0 ? (
-          selectedStudent.sessions.map((session, index) => (
-            <Card key={index} style={styles.sessionCard}>
-              <Card.Content>
-                <Text style={styles.sessionTitle}>{session.subject || 'No subject'}</Text>
-                <Text>When: {session.time || 'Time not specified'}</Text>
-                {session.date && <Text>Date: {session.date}</Text>}
-              </Card.Content>
-            </Card>
-          ))
+          selectedStudent.sessions
+            .sort((a, b) => new Date(a.date) - new Date(b.date)) // Sort by date
+            .map((session, index) => (
+              <Card key={index} style={styles.sessionCard}>
+                <Card.Content>
+                  <Text style={styles.sessionTitle}>
+                    {session.subject || 'General Session'}
+                  </Text>
+                  <View style={styles.sessionDetailRow}>
+                    <Icon source="calendar" size={16} color="#666" />
+                    <Text style={styles.sessionText}>
+                      {session.date ? format(new Date(session.date), 'MMM do, yyyy') : 'Date not set'}
+                    </Text>
+                  </View>
+                  <View style={styles.sessionDetailRow}>
+                    <Icon source="clock" size={16} color="#666" />
+                    <Text style={styles.sessionText}>
+                      {session.time || 'Time not specified'} ({session.duration} hours)
+                    </Text>
+                  </View>
+                  {session.bookedAt && (
+                    <Text style={styles.sessionNote}>
+                      Booked on: {format(new Date(session.bookedAt), 'MMM do, yyyy h:mm a')}
+                    </Text>
+                  )}
+                </Card.Content>
+                <Card.Actions>
+                  <Button 
+                    mode="contained-tonal" 
+                    onPress={() => handleSessionAction(session)}
+                  >
+                    View Details
+                  </Button>
+                </Card.Actions>
+              </Card>
+            ))
         ) : (
-          <Text>No upcoming sessions</Text>
+          <Text style={styles.noItemsText}>No upcoming sessions</Text>
         )}
-
+  
+        {/* Enhanced Back Button */}
         <Button 
           onPress={() => setSelectedStudent(null)} 
-          mode="outlined" 
+          mode="elevated" 
+          icon="arrow-left"
           style={styles.backButton}
+          labelStyle={styles.buttonLabel}
         >
-          Back to Students
+          Return to Students List
         </Button>
       </View>
     );
