@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIn
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
-import { fetchTutors, fetchUpcomingSessions } from './SharedHomeUtils';
+import { fetchTutors, fetchStudentSessions } from './SharedHomeUtils';
 import { doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -90,7 +90,7 @@ const StudentHomePage = () => {
         setFilteredTutors(tutorsData);
         
         // Load upcoming sessions
-        const sessions = await fetchUpcomingSessions(user.uid);
+        const sessions = await fetchStudentSessions(user.uid);
         setUpcomingSessions(sessions);
       } catch (error) {
         console.error('Error loading data:', error);

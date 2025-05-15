@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIn
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
-import { fetchTutors, fetchEnrolledStudents, fetchUpcomingSessions } from './SharedHomeUtils';
+import { fetchTutors, fetchEnrolledStudents, fetchTutorSessions } from './SharedHomeUtils';
 
 const TutorHomePage = () => {
   const { logout, user } = useAuth();
@@ -32,11 +32,12 @@ const TutorHomePage = () => {
         setFilteredTutors(tutorsData);
         
         // Load enrolled students
-        const enrolledStudents = await fetchEnrolledStudents(user.id);
+        const enrolledStudents = await fetchEnrolledStudents(user.userID);
         setStudents(enrolledStudents);
         
+        console.log(user);
         // Load upcoming sessions
-        const sessions = await fetchUpcomingSessions(user.id);
+        const sessions = await fetchTutorSessions(user.userID);
         setUpcomingSessions(sessions);
         
       } catch (error) {
