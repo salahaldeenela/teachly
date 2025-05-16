@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  ActivityIndicator, 
+  Button,
+  Alert
+} from 'react-native';
 import { Card } from 'react-native-paper';
 import { auth, db } from '../../../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const StudentCalendar = () => {
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -50,6 +59,39 @@ const StudentCalendar = () => {
     fetchUpcomingSessions();
   }, [user]);
 
+  const handleCancelSession = async (sessionId) => {
+    try {
+      setSaving(true);
+      const studentRef = doc(db, 'users', user.uid);
+      
+      // Find the session to remove
+      const sessionToRemove = upcomingSessions.find(s => s.id === sessionId);
+      if (!sessionToRemove) {
+        throw new Error('Session not found');
+      }
+
+      // Only allow cancellation if session isn't already completed
+      if (sessionToRemove.status === 'completed') {
+        Alert.alert('Error', 'Cannot cancel a completed session');
+        return;
+      }
+
+      await updateDoc(studentRef, {
+        bookedSessions: arrayRemove(sessionToRemove)
+      });
+
+      // Update local state
+      setUpcomingSessions(prev => prev.filter(s => s.id !== sessionId));
+
+      Alert.alert('Success', 'Session cancelled successfully!');
+    } catch (error) {
+      console.error('Error cancelling session:', error);
+      Alert.alert('Error', error.message || 'Failed to cancel session');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -61,11 +103,14 @@ const StudentCalendar = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.header}>Your Upcoming Sessions</Text>
+        <Text style={styles.header}>Your Sessions</Text>
         
         {upcomingSessions.length > 0 ? (
           upcomingSessions.map((session) => (
-            <Card key={session.id} style={styles.sessionCard}>
+            <Card key={session.id} style={[
+              styles.sessionCard,
+              session.status === 'completed' && styles.completedSessionCard
+            ]}>
               <Card.Content>
                 <Text style={styles.sessionTitle}>With {session.tutorName || 'Unknown tutor'}</Text>
                 <Text>Subject: {session.subject || 'No subject specified'}</Text>
@@ -73,11 +118,24 @@ const StudentCalendar = () => {
                 <Text>Duration: {session.duration} hour(s)</Text>
                 <Text>Price: {session.price} SAR</Text>
                 <Text>Status: {session.status || 'unknown'}</Text>
+                
+                {session.status !== 'completed' && (
+                  <Button 
+                    title="Cancel Session" 
+                    onPress={() => handleCancelSession(session.id)} 
+                    color="#FF3B30"
+                    disabled={saving}
+                    style={styles.cancelButton}
+                  />
+                )}
+                {session.status === 'completed' && (
+                  <Text style={styles.completedText}>This session is completed</Text>
+                )}
               </Card.Content>
             </Card>
           ))
         ) : (
-          <Text style={styles.noSessionsText}>No upcoming sessions.</Text>
+          <Text style={styles.noSessionsText}>No sessions found.</Text>
         )}
       </View>
     </ScrollView>
@@ -107,6 +165,11 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#f9f9f9',
   },
+  completedSessionCard: {
+    backgroundColor: '#e8f5e9', // Light green background for completed sessions
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50', // Green border for completed sessions
+  },
   sessionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -116,6 +179,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
+  },
+  cancelButton: {
+    marginTop: 10,
+  },
+  completedText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });
 

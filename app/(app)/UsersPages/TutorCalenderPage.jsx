@@ -121,6 +121,48 @@ const TutorCalender = () => {
     }
   };
 
+  const handleCompleteSession = async (sessionId) => {
+    try {
+      setSaving(true);
+      const tutorRef = doc(db, 'users', user.userID);
+      
+      // Find the session to update
+      const sessionIndex = upcomingSessions.findIndex(s => s.id === sessionId);
+      if (sessionIndex === -1) {
+        throw new Error('Session not found');
+      }
+
+      // Create updated session with status completed
+      const updatedSession = {
+        ...upcomingSessions[sessionIndex],
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      };
+
+      // First remove the old session
+      await updateDoc(tutorRef, {
+        sessions: arrayRemove(upcomingSessions[sessionIndex])
+      });
+
+      // Then add the updated session
+      await updateDoc(tutorRef, {
+        sessions: arrayUnion(updatedSession)
+      });
+
+      // Update local state
+      const updatedSessions = [...upcomingSessions];
+      updatedSessions[sessionIndex] = updatedSession;
+      setUpcomingSessions(updatedSessions);
+
+      Alert.alert('Success', 'Session marked as completed!');
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', error.message || 'Failed to complete session');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
@@ -207,7 +249,10 @@ const TutorCalender = () => {
           <ActivityIndicator size="large" style={styles.loader} />
         ) : upcomingSessions.length > 0 ? (
           upcomingSessions.map((session) => (
-            <Card key={session.id} style={styles.sessionCard}>
+            <Card key={session.id} style={[
+              styles.sessionCard,
+              session.status === 'completed' && styles.completedSessionCard
+            ]}>
               <Card.Content>
                 <Text style={styles.sessionTitle}>{session.subject || 'No subject specified'}</Text>
                 <Text>Date: {session.date || 'Date not specified'}</Text>
@@ -215,12 +260,30 @@ const TutorCalender = () => {
                 <Text>Duration: {session.duration || 1} hour{session.duration !== 1 ? 's' : ''}</Text>
                 <Text>Price: {session.price || 0} SAR</Text>
                 <Text>Status: {session.status || 'available'}</Text>
-                <Button 
-                  title="Cancel Session" 
-                  onPress={() => handleDeleteSession(session.id)} 
-                  color="#FF3B30"
-                  disabled={saving}
-                />
+                
+                <View style={styles.buttonContainer}>
+                  {session.status !== 'completed' && (
+                    <>
+                      <Button 
+                        title="Cancel Session" 
+                        onPress={() => handleDeleteSession(session.id)} 
+                        color="#FF3B30"
+                        disabled={saving}
+                        style={styles.button}
+                      />
+                      <Button 
+                        title="Mark Completed" 
+                        onPress={() => handleCompleteSession(session.id)} 
+                        color="#4CAF50"
+                        disabled={saving}
+                        style={styles.button}
+                      />
+                    </>
+                  )}
+                  {session.status === 'completed' && (
+                    <Text style={styles.completedText}>This session is completed</Text>
+                  )}
+                </View>
               </Card.Content>
             </Card>
           ))
@@ -283,10 +346,30 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#f9f9f9'
   },
+  completedSessionCard: {
+    backgroundColor: '#e8f5e9', // Light green background for completed sessions
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50', // Green border for completed sessions
+  },
   sessionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5
+  },
+  buttonContainer: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  completedText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 10,
   },
   loader: {
     marginVertical: 20
