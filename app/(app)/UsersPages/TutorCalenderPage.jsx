@@ -10,13 +10,14 @@ import {
   TouchableOpacity,
   Alert
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import { fetchTutorSessions } from './SharedHomeUtils';
 import { db } from '../../../firebaseConfig';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
-const TutorCalender = () => {
+const TutorCalendar = () => {
   const { user } = useAuth();
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,19 @@ const TutorCalender = () => {
     price: 0,
     status: 'available'
   });
+
+  const availableSubjects = [
+    'Arabic',
+      'Math',
+      'Physics',
+      'Chemistry',
+      'Biology',
+      'History',
+      'Geography',
+      'Islamic Studies',
+      'English',
+      'Economics',
+  ];
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -126,30 +140,25 @@ const TutorCalender = () => {
       setSaving(true);
       const tutorRef = doc(db, 'users', user.userID);
       
-      // Find the session to update
       const sessionIndex = upcomingSessions.findIndex(s => s.id === sessionId);
       if (sessionIndex === -1) {
         throw new Error('Session not found');
       }
 
-      // Create updated session with status completed
       const updatedSession = {
         ...upcomingSessions[sessionIndex],
         status: 'completed',
         completedAt: new Date().toISOString()
       };
 
-      // First remove the old session
       await updateDoc(tutorRef, {
         sessions: arrayRemove(upcomingSessions[sessionIndex])
       });
 
-      // Then add the updated session
       await updateDoc(tutorRef, {
         sessions: arrayUnion(updatedSession)
       });
 
-      // Update local state
       const updatedSessions = [...upcomingSessions];
       updatedSessions[sessionIndex] = updatedSession;
       setUpcomingSessions(updatedSessions);
@@ -180,13 +189,21 @@ const TutorCalender = () => {
 
         {showAddSessionUI && (
           <View style={styles.sessionForm}>
-            <TextInput
-              style={styles.input}
-              value={newSession.subject}
-              onChangeText={(text) => setNewSession({...newSession, subject: text})}
-              placeholder="Subject (e.g., Math, Physics)"
-              editable={!saving}
-            />
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={newSession.subject}
+                onValueChange={(itemValue) => 
+                  setNewSession({...newSession, subject: itemValue})
+                }
+                style={styles.picker}
+                dropdownIconColor="#000"
+              >
+                <Picker.Item label="Select a subject" value="" />
+                {availableSubjects.map((subject, index) => (
+                  <Picker.Item key={index} label={subject} value={subject} />
+                ))}
+              </Picker>
+            </View>
 
             <View style={styles.rowInputs}>
               <TextInput
@@ -269,14 +286,12 @@ const TutorCalender = () => {
                         onPress={() => handleDeleteSession(session.id)} 
                         color="#FF3B30"
                         disabled={saving}
-                        style={styles.button}
                       />
                       <Button 
                         title="Mark Completed" 
                         onPress={() => handleCompleteSession(session.id)} 
                         color="#4CAF50"
                         disabled={saving}
-                        style={styles.button}
                       />
                     </>
                   )}
@@ -325,6 +340,18 @@ const styles = StyleSheet.create({
   sessionForm: {
     marginBottom: 20,
   },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 15,
+    backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+  },
+  picker: {
+    width: '100%',
+    height: 50,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -347,9 +374,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9'
   },
   completedSessionCard: {
-    backgroundColor: '#e8f5e9', // Light green background for completed sessions
+    backgroundColor: '#e8f5e9',
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50', // Green border for completed sessions
+    borderLeftColor: '#4CAF50',
   },
   sessionTitle: {
     fontSize: 16,
@@ -360,10 +387,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
   },
   completedText: {
     color: '#4CAF50',
@@ -376,4 +399,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default TutorCalender;
+export default TutorCalendar;
