@@ -116,7 +116,7 @@ const StudentCalendar = () => {
                 <Text>Subject: {session.subject || 'No subject specified'}</Text>
                 <Text>When: {session.date} at {session.time}</Text>
                 <Text>Duration: {session.duration} hour(s)</Text>
-                <Text>Price: {session.price} SAR</Text>
+                <Text>Price: {session.price} JD</Text>
                 <Text>Status: {session.status || 'unknown'}</Text>
                 
                 {session.status !== 'completed' && (

@@ -164,7 +164,7 @@ const StudentHomePage = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
-        <Text>Price: {selectedTutor.price || 'Not specified'} SAR/hour</Text>
+        <Text>Price: {selectedTutor.price || 'Not specified'} JD/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
         
@@ -230,7 +230,7 @@ const StudentHomePage = ({ navigation }) => {
                   <Text>Date: {session.date}</Text>
                   <Text>Time: {session.time}</Text>
                   <Text>Duration: {session.duration} hour(s)</Text>
-                  <Text>Price: {session.price} SAR</Text>
+                  <Text>Price: {session.price} JD</Text>
                 </Card.Content>
                 <Card.Actions>
                   <Button 
@@ -320,7 +320,7 @@ const StudentHomePage = ({ navigation }) => {
               <Card style={styles.card}>
                 <Card.Title 
                   title={tutor.name || 'No name'} 
-                  subtitle={`${tutor.province || 'Location not specified'} | ${tutor.price || '?'} SAR/hour`} 
+                  subtitle={`${tutor.province || 'Location not specified'} | ${tutor.price || '?'} JD/hour`} 
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(tutor)}</Text>

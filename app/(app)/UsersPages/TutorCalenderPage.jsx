@@ -241,7 +241,7 @@ const TutorCalendar = () => {
                   ...newSession, 
                   price: Math.max(0, Number(text) || 0)
                 })}
-                placeholder="Price (SAR)"
+                placeholder="Price (JD)"
                 keyboardType="numeric"
                 editable={!saving}
               />
@@ -275,7 +275,7 @@ const TutorCalendar = () => {
                 <Text>Date: {session.date || 'Date not specified'}</Text>
                 <Text>Time: {session.time || 'Time not specified'}</Text>
                 <Text>Duration: {session.duration || 1} hour{session.duration !== 1 ? 's' : ''}</Text>
-                <Text>Price: {session.price || 0} SAR</Text>
+                <Text>Price: {session.price || 0} JD</Text>
                 <Text>Status: {session.status || 'available'}</Text>
                 
                 <View style={styles.buttonContainer}>
