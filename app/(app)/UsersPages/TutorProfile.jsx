@@ -323,7 +323,7 @@ const TutorProfile = ({ user }) => {
           style={[styles.input, styles.descriptionInput]}
           value={tutor.experince}
           onChangeText={(text) => setTutor({ ...tutor, experince: text })}
-          placeholder="About you and your teaching approach"
+          placeholder="About you and your teaching experince"
           multiline
           editable={!saving}
         />
@@ -508,7 +508,7 @@ const TutorProfile = ({ user }) => {
       </View>
 
       {/* Pricing Section */}
-      <View style={styles.section}>
+      {/* <View style={styles.section}>
         <Text style={styles.sectionTitle}>Pricing</Text>
         <TextInput
           style={styles.input}
@@ -521,7 +521,7 @@ const TutorProfile = ({ user }) => {
           keyboardType="numeric"
           editable={!saving}
         />
-      </View>
+      </View> */}
 
       {/* Display Reviews */}
       <View style={styles.reviewList}>
