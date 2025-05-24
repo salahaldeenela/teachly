@@ -11,32 +11,19 @@ import {
   Alert 
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; 
-import { getDoc, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 const TutorProfile = ({ user }) => {
-  // State management
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [showAddGradeUI, setShowAddGradeUI] = useState(false);
-  const [showAddSessionUI, setShowAddSessionUI] = useState(false);
   
-  // Session form state
-  const [newSession, setNewSession] = useState({
-    subject: '',
-    date: '',
-    time: '',
-    duration: 1,
-    price: 0,
-    status: 'available'
-  });
-
-  // Grade and subject data
   const gradesData = {
     'Grade 1-3': ['Arabic', 'Math', 'Science', 'Islamic Studies', 'English'],
     'Grade 4-6': ['Arabic', 'Math', 'Science', 'Social Studies', 'Islamic Studies', 'English'],
@@ -44,7 +31,6 @@ const TutorProfile = ({ user }) => {
     'Grade 10-12': ['Arabic', 'Math', 'Physics', 'Chemistry', 'Biology', 'History', 'Geography', 'Islamic Studies', 'English', 'Economics'],
   };
 
-  // Fetch tutor data on component mount
   useEffect(() => {
     const fetchTutorData = async () => {
       try {
@@ -70,20 +56,11 @@ const TutorProfile = ({ user }) => {
     };
 
     const processTutorData = (tutorData) => {
-      // Convert grade object to array if needed
       if (tutorData.grade && typeof tutorData.grade === 'object' && !Array.isArray(tutorData.grade)) {
         tutorData.grade = Object.entries(tutorData.grade).map(([grade, subjects]) => ({
           grade,
           subjects: Array.isArray(subjects) ? subjects : []
         }));
-      }
-      
-      // Initialize empty arrays if they don't exist
-      if (!tutorData.sessions) tutorData.sessions = [];
-      
-      // Set default price for new sessions
-      if (tutorData.price) {
-        setNewSession(prev => ({ ...prev, price: tutorData.price }));
       }
       
       setTutor(tutorData);
@@ -92,13 +69,11 @@ const TutorProfile = ({ user }) => {
     fetchTutorData();
   }, [user]);
 
-  // Save profile data to Firestore
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
       const docRef = doc(db, 'users', user.userID);
       
-      // Convert grade array back to object for Firestore
       const gradeObject = {};
       if (tutor.grade) {
         tutor.grade.forEach(item => {
@@ -120,90 +95,6 @@ const TutorProfile = ({ user }) => {
     }
   };
 
-  // Add a new session
-  const handleAddSession = async () => {
-    if (!newSession.subject || !newSession.date || !newSession.time) {
-      Alert.alert('Error', 'Please fill all required session details');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const sessionId = `session_${Date.now()}`;
-      const sessionToAdd = {
-        id: sessionId,
-        subject: newSession.subject,
-        date: newSession.date,
-        time: newSession.time,
-        duration: newSession.duration || 1,
-        price: newSession.price || tutor.price || 0,
-        status: 'available',
-        createdAt: new Date().toISOString()
-      };
-
-      const tutorRef = doc(db, 'users', user.userID);
-      await updateDoc(tutorRef, {
-        sessions: arrayUnion(sessionToAdd)
-      });
-
-      // Update local state
-      setTutor(prev => ({
-        ...prev,
-        sessions: [...(prev.sessions || []), sessionToAdd]
-      }));
-
-      // Reset form
-      setNewSession({
-        subject: '',
-        date: '',
-        time: '',
-        duration: 1,
-        price: tutor.price || 0,
-        status: 'available'
-      });
-      setShowAddSessionUI(false);
-
-      Alert.alert('Success', 'Session added successfully!');
-    } catch (error) {
-      console.error('Error adding session:', error);
-      Alert.alert('Error', 'Failed to add session');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Delete a session
-  const handleDeleteSession = async (sessionId) => {
-    try {
-      setSaving(true);
-      const tutorRef = doc(db, 'users', user.userID);
-      
-      // Find the session to remove
-      const sessionToRemove = tutor.sessions.find(s => s.id === sessionId);
-      if (!sessionToRemove) {
-        throw new Error('Session not found');
-      }
-
-      await updateDoc(tutorRef, {
-        sessions: arrayRemove(sessionToRemove)
-      });
-
-      // Update local state
-      setTutor(prev => ({
-        ...prev,
-        sessions: prev.sessions.filter(s => s.id !== sessionId)
-      }));
-
-      Alert.alert('Success', 'Session deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      Alert.alert('Error', error.message || 'Failed to delete session');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Grade management functions
   const handleAddGrade = () => {
     if (!selectedGrade || selectedSubjects.length === 0) {
       Alert.alert('Error', 'Please select a grade and at least one subject');
@@ -234,13 +125,11 @@ const TutorProfile = ({ user }) => {
     );
   };
 
-  // Phone number validation
   const handlePhoneNumberChange = (text) => {
     const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 10);
     setTutor({ ...tutor, phoneNumber: cleanedText });
   };
 
-  // Loading state
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -250,7 +139,6 @@ const TutorProfile = ({ user }) => {
     );
   }
 
-  // Error state
   if (!tutor) {
     return (
       <View style={styles.errorContainer}>
@@ -265,7 +153,6 @@ const TutorProfile = ({ user }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.profileImagePlaceholder}>
              <FontAwesome5 
@@ -277,7 +164,6 @@ const TutorProfile = ({ user }) => {
         <Text style={styles.title}>Tutor Profile</Text>
       </View>
 
-      {/* Basic Information Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Basic Information</Text>
         
@@ -329,7 +215,6 @@ const TutorProfile = ({ user }) => {
         />
       </View>
 
-      {/* Grades and Subjects Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Grades and Subjects</Text>
@@ -407,107 +292,6 @@ const TutorProfile = ({ user }) => {
         )}
       </View>
 
-      {/* Sessions Management Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Tutoring Sessions</Text>
-          <TouchableOpacity 
-            onPress={() => setShowAddSessionUI(!showAddSessionUI)}
-            disabled={saving}
-          >
-            <Text style={styles.addButton}>➕</Text>
-          </TouchableOpacity>
-        </View>
-
-        {showAddSessionUI && (
-          <View style={styles.sessionForm}>
-            <TextInput
-              style={styles.input}
-              value={newSession.subject}
-              onChangeText={(text) => setNewSession({...newSession, subject: text})}
-              placeholder="Subject (e.g., Math, Physics)"
-              editable={!saving}
-            />
-
-            <View style={styles.rowInputs}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={newSession.date}
-                onChangeText={(text) => setNewSession({...newSession, date: text})}
-                placeholder="Date (YYYY-MM-DD)"
-                editable={!saving}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={newSession.time}
-                onChangeText={(text) => setNewSession({...newSession, time: text})}
-                placeholder="Time (HH:MM AM/PM)"
-                editable={!saving}
-              />
-            </View>
-
-            <View style={styles.rowInputs}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={String(newSession.duration)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  duration: Math.max(1, Number(text) || 1)
-                })}
-                placeholder="Duration (hours)"
-                keyboardType="numeric"
-                editable={!saving}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={String(newSession.price)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  price: Math.max(0, Number(text) || 0)
-                })}
-                placeholder="Price (SAR)"
-                keyboardType="numeric"
-                editable={!saving}
-              />
-            </View>
-
-            <Button 
-              title="Add Session" 
-              onPress={handleAddSession} 
-              disabled={
-                !newSession.subject || 
-                !newSession.date || 
-                !newSession.time || 
-                saving
-              }
-            />
-          </View>
-        )}
-
-        {tutor.sessions?.length > 0 ? (
-          tutor.sessions.map((session) => (
-            <View key={session.id} style={styles.sessionItem}>
-              <View style={styles.sessionDetails}>
-                <Text style={styles.sessionTitle}>{session.subject}</Text>
-                <Text>Date: {session.date}</Text>
-                <Text>Time: {session.time} ({session.duration} hour{session.duration !== 1 ? 's' : ''})</Text>
-                <Text>Price: {session.price} SAR</Text>
-                <Text>Status: {session.status}</Text>
-              </View>
-              <Button 
-                title="Delete" 
-                onPress={() => handleDeleteSession(session.id)} 
-                color="#FF3B30"
-                disabled={saving}
-              />
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noSessionsText}>No sessions created yet</Text>
-        )}
-      </View>
-
-      {/* Pricing Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Pricing</Text>
         <TextInput
@@ -523,7 +307,6 @@ const TutorProfile = ({ user }) => {
         />
       </View>
 
-      {/* Display Reviews */}
       <View style={styles.reviewList}>
         <Text style={styles.sectionTitle}>Reviews</Text>
         {tutor.reviews?.length > 0 ? (
@@ -537,7 +320,7 @@ const TutorProfile = ({ user }) => {
           <Text>No reviews yet.</Text>
         )}
       </View>
-      {/* Average Rating */}
+      
       {tutor.reviews?.length > 0 && (
         <View style={styles.averageRatingContainer}>
           <Text style={styles.averageRatingLabel}>Rating:</Text>
@@ -555,7 +338,7 @@ const TutorProfile = ({ user }) => {
           </View>
         </View>
       )}
-      {/* Save Button */}
+      
       <Button 
         title={saving ? "Saving..." : "Save All Changes"} 
         onPress={handleSaveProfile} 

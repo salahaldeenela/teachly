@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator,TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
-import { fetchTutors, fetchStudentSessions } from './SharedHomeUtils';
+import { fetchTutors } from './SharedHomeUtils';
 import { doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const StudentHomePage = () => {
+const StudentHomePage = ({ navigation }) => {
   const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [allTutors, setAllTutors] = useState([]);
   const [filteredTutors, setFilteredTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
-  const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tutorsLoading, setTutorsLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);const [reviewText, setReviewText] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -39,7 +39,6 @@ const StudentHomePage = () => {
         reviews: arrayUnion(review),
       });
 
-      // Update local state (optional if parent refreshes data)
       setSelectedTutor(prev => ({
         ...prev,
         reviews: [...(prev.reviews || []), review],
@@ -56,8 +55,6 @@ const StudentHomePage = () => {
     }
   };
 
-
-  // Sync auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -65,7 +62,6 @@ const StudentHomePage = () => {
           uid: firebaseUser.uid,
           displayName: firebaseUser.displayName,
           email: firebaseUser.email,
-          // Add other user properties you need
         });
       } else {
         setUser(null);
@@ -76,25 +72,18 @@ const StudentHomePage = () => {
     return unsubscribe;
   }, []);
 
-  // Load data when user is authenticated
   useEffect(() => {
     const loadData = async () => {
       if (!user?.uid) return;
       
       try {
         setTutorsLoading(true);
-        
-        // Load tutors
         const tutorsData = await fetchTutors();
         setAllTutors(tutorsData);
         setFilteredTutors(tutorsData);
-        
-        // Load upcoming sessions
-        const sessions = await fetchStudentSessions(user.uid);
-        setUpcomingSessions(sessions);
       } catch (error) {
-        console.error('Error loading data:', error);
-        Alert.alert('Error', 'Failed to load data');
+        console.error('Error loading tutors:', error);
+        Alert.alert('Error', 'Failed to load tutors');
       } finally {
         setTutorsLoading(false);
       }
@@ -107,17 +96,14 @@ const StudentHomePage = () => {
     try {
       setLoading(true);
       
-      // Get fresh auth state
       const currentUser = auth.currentUser;
       if (!currentUser) {
         throw new Error('You must be logged in to book a session');
       }
 
-      // Create references
       const tutorRef = doc(db, 'users', tutorId);
       const studentRef = doc(db, 'users', currentUser.uid);
       
-      // Get current data
       const [tutorDoc, studentDoc] = await Promise.all([
         getDoc(tutorRef),
         getDoc(studentRef)
@@ -129,21 +115,17 @@ const StudentHomePage = () => {
       const sessionToBook = tutorData.sessions?.find(s => s.id === sessionId);
       if (!sessionToBook) throw new Error('Session not found');
 
-      // Check for duplicate booking
       const studentData = studentDoc.data() || {};
       if (studentData.bookedSessions?.some(s => s.id === sessionId)) {
         throw new Error('You have already booked this session');
       }
 
-      // Prepare updates
       const batch = writeBatch(db);
       
-      // Remove from tutor's available sessions
       batch.update(tutorRef, {
         sessions: arrayRemove(sessionToBook)
       });
       
-      // Add to student's booked sessions
       const bookedSession = {
         ...sessionToBook,
         tutorId,
@@ -160,15 +142,13 @@ const StudentHomePage = () => {
 
       await batch.commit();
       
-      // Update local state
       setSelectedTutor(prev => ({
         ...prev,
         sessions: prev.sessions.filter(s => s.id !== sessionId)
       }));
       
-      setUpcomingSessions(prev => [...prev, bookedSession]);
-      
       Alert.alert('Success', 'Session booked successfully!');
+      navigation.navigate('Calendar'); // Navigate to calendar after booking
     } catch (error) {
       console.error('Error booking session:', error);
       Alert.alert('Error', error.message || 'Failed to book session');
@@ -184,23 +164,19 @@ const StudentHomePage = () => {
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
-        <Text>Price: {selectedTutor.price || 'Not specified'} SAR/hour</Text>
+        <Text>Price: {selectedTutor.price || 'Not specified'} JD/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
         
-        {/* Report & Reviews Section */}
-      <Text style={styles.subHeader}>Report</Text>
+        <Text style={styles.subHeader}>Report</Text>
+        <TouchableOpacity
+          style={styles.reportButton}
+          onPress={() => Alert.alert('Report Submitted', 'Thank you for your feedback.')}
+        >
+          <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
+        </TouchableOpacity>
 
-      {/* Report Button */}
-      <TouchableOpacity
-        style={styles.reportButton}
-        onPress={() => Alert.alert('Report Submitted', 'Thank you for your feedback.')}
-      >
-        <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
-      </TouchableOpacity>
-
-      {/* Submit Review */}
-      <Text style={styles.subHeader}>Leave a Review</Text>
+        <Text style={styles.subHeader}>Leave a Review</Text>
         <View style={styles.starsContainer}>
           <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Your Rating</Text>
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
@@ -214,34 +190,34 @@ const StudentHomePage = () => {
           </View>
         </View>
 
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        placeholder="Write your review here"
-        multiline
-        value={reviewText}
-        onChangeText={setReviewText}
-      />
-      <Button 
-        mode="contained" 
-        onPress={submitReview}
-        disabled={submittingReview}
-        style={{ marginVertical: 10 }}
-      >
-        {submittingReview ? 'Submitting...' : 'Submit Review'}
-      </Button>
+        <TextInput
+          style={[styles.input, { height: 80 }]}
+          placeholder="Write your review here"
+          multiline
+          value={reviewText}
+          onChangeText={setReviewText}
+        />
+        <Button 
+          mode="contained" 
+          onPress={submitReview}
+          disabled={submittingReview}
+          style={{ marginVertical: 10 }}
+        >
+          {submittingReview ? 'Submitting...' : 'Submit Review'}
+        </Button>
 
-       {/* Reviews List */}
-      <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>Reviews</Text>
-      {selectedTutor.reviews?.length > 0 ? (
-        selectedTutor.reviews.map((review, index) => (
-          <View key={index} style={styles.reviewItem}>
-            <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
-            <Text style={styles.reviewComment}>{review.comment}</Text>
-          </View>
-        ))
-      ) : (
-        <Text>No reviews yet.</Text>
-      )}
+        <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>Reviews</Text>
+        {selectedTutor.reviews?.length > 0 ? (
+          selectedTutor.reviews.map((review, index) => (
+            <View key={index} style={styles.reviewItem}>
+              <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
+              <Text style={styles.reviewComment}>{review.comment}</Text>
+            </View>
+          ))
+        ) : (
+          <Text>No reviews yet.</Text>
+        )}
+        
         <Text style={styles.subHeader}>Available Sessions:</Text>
         
         {selectedTutor.sessions?.filter(s => s.status === 'available').length > 0 ? (
@@ -254,7 +230,7 @@ const StudentHomePage = () => {
                   <Text>Date: {session.date}</Text>
                   <Text>Time: {session.time}</Text>
                   <Text>Duration: {session.duration} hour(s)</Text>
-                  <Text>Price: {session.price} SAR</Text>
+                  <Text>Price: {session.price} JD</Text>
                 </Card.Content>
                 <Card.Actions>
                   <Button 
@@ -330,7 +306,7 @@ const StudentHomePage = () => {
   
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
   
-        <Text style={styles.subHeader}>Explore Tutors </Text>
+        <Text style={styles.subHeader}>Explore Tutors</Text>
         
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
@@ -344,7 +320,7 @@ const StudentHomePage = () => {
               <Card style={styles.card}>
                 <Card.Title 
                   title={tutor.name || 'No name'} 
-                  subtitle={`${tutor.province || 'Location not specified'} | ${tutor.price || '?'} SAR/hour`} 
+                  subtitle={`${tutor.province || 'Location not specified'} | ${tutor.price || '?'} JD/hour`} 
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(tutor)}</Text>
@@ -355,24 +331,6 @@ const StudentHomePage = () => {
         ) : (
           <Text>No tutors found in your area.</Text>
         )}
-  
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Your Upcoming Sessions:</Text>
-          {upcomingSessions.length > 0 ? (
-            upcomingSessions.map((session) => (
-              <Card key={session.id} style={styles.sessionCard}>
-                <Card.Content>
-                  <Text style={styles.sessionTitle}>With {session.tutorName || 'Unknown tutor'}</Text>
-                  <Text>Subject: {session.subject || 'No subject specified'}</Text>
-                  <Text>When: {session.date} at {session.time}</Text>
-                  <Text>Status: {session.status || 'unknown'}</Text>
-                </Card.Content>
-              </Card>
-            ))
-          ) : (
-            <Text>No upcoming sessions.</Text>
-          )}
-        </View>
       </View>
     </ScrollView>
   );
@@ -434,49 +392,48 @@ const styles = StyleSheet.create({
     marginVertical: 20
   },
   reportButton: {
-  backgroundColor: '#ff4d4d',
-  padding: 10,
-  borderRadius: 8,
-  marginBottom: 10,
-  alignItems: 'center',
-},
-reportButtonText: {
-  color: '#fff',
-  fontWeight: 'bold',
-},
-input: {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 8,
-  padding: 10,
-  marginBottom: 10,
-},
-reviewItem: {
-  backgroundColor: '#f0f0f0',
-  padding: 10,
-  marginBottom: 10,
-  borderRadius: 8,
-},
-reviewRating: {
-  fontWeight: 'bold',
-},
-reviewComment: {
-  marginBottom: 4,
-},
-starsContainer: {
-  marginBottom: 10,
-},
-filledStar: {
-  fontSize: 30,
-  color: '#FFD700', // gold
-  marginHorizontal: 3,
-},
-emptyStar: {
-  fontSize: 30,
-  color: '#ccc', // gray
-  marginHorizontal: 3,
-},
-
+    backgroundColor: '#ff4d4d',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  reportButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  reviewItem: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+  },
+  reviewRating: {
+    fontWeight: 'bold',
+  },
+  reviewComment: {
+    marginBottom: 4,
+  },
+  starsContainer: {
+    marginBottom: 10,
+  },
+  filledStar: {
+    fontSize: 30,
+    color: '#FFD700',
+    marginHorizontal: 3,
+  },
+  emptyStar: {
+    fontSize: 30,
+    color: '#ccc',
+    marginHorizontal: 3,
+  },
 });
 
 export default StudentHomePage;

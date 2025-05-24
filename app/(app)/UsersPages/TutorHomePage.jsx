@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator,TouchableOpacity } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
-import { fetchTutors, fetchEnrolledStudents, fetchTutorSessions } from './SharedHomeUtils';
+import { fetchTutors, fetchEnrolledStudents } from './SharedHomeUtils';
 
 const TutorHomePage = () => {
   const { logout, user } = useAuth();
   const [allTutors, setAllTutors] = useState([]);
   const [filteredTutors, setFilteredTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
-  const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tutorsLoading, setTutorsLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(true);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -24,7 +22,6 @@ const TutorHomePage = () => {
         setLoading(true);
         setTutorsLoading(true);
         setStudentsLoading(true);
-        setSessionsLoading(true);
 
         // Load all tutors data
         const tutorsData = await fetchTutors();
@@ -35,11 +32,6 @@ const TutorHomePage = () => {
         const enrolledStudents = await fetchEnrolledStudents(user.userID);
         setStudents(enrolledStudents);
         
-        console.log(user);
-        // Load upcoming sessions
-        const sessions = await fetchTutorSessions(user.userID);
-        setUpcomingSessions(sessions);
-        
       } catch (error) {
         console.error('Error loading data:', error);
         Alert.alert('Error', 'Failed to load data. Please try again.');
@@ -47,7 +39,6 @@ const TutorHomePage = () => {
         setLoading(false);
         setTutorsLoading(false);
         setStudentsLoading(false);
-        setSessionsLoading(false);
       }
     };
 
@@ -63,7 +54,7 @@ const TutorHomePage = () => {
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
-        <Text>Price: {selectedTutor.price || 'Not specified'} SAR/hour</Text>
+        <Text>Price: {selectedTutor.price || 'Not specified'} JD/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
 
         <Text style={styles.subHeader}>Available Sessions:</Text>
@@ -118,7 +109,7 @@ const TutorHomePage = () => {
                 <Text>When: {session.time || 'Time not specified'}</Text>
                 {session.date && (
                   <Text>
-                    Date: {session.date.toLocaleDateString()} {/* Convert Date to string */}
+                    Date: {session.date.toLocaleDateString()}
                   </Text>
                 )}
               </Card.Content>
@@ -138,6 +129,7 @@ const TutorHomePage = () => {
       </View>
     );
   };
+
   const getSubjectsFromTutor = (tutor) => {
     if (!tutor?.grade) return "No subjects listed";
     
@@ -197,7 +189,7 @@ const TutorHomePage = () => {
               <Card style={styles.card}>
                 <Card.Title 
                   title={item.name || 'No name'} 
-                  subtitle={`${item.province || 'Location not specified'} | ${item.price || '?'} SAR/hour`} 
+                  subtitle={`${item.province || 'Location not specified'} | ${item.price || '?'} JD/hour`} 
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(item)}</Text>
@@ -208,25 +200,6 @@ const TutorHomePage = () => {
         ) : (
           <Text>No tutors found in your area.</Text>
         )}
-  
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Your Upcoming Sessions:</Text>
-          {sessionsLoading ? (
-            <ActivityIndicator size="small" style={styles.loader} />
-          ) : upcomingSessions.length > 0 ? (
-            upcomingSessions.map((session) => (
-              <Card key={session.id} style={styles.sessionCard}>
-                <Card.Content>
-                  <Text style={styles.sessionTitle}>With {session.studentName || 'Student'}</Text>
-                  <Text>Subject: {session.subject || 'No subject specified'}</Text>
-                  <Text>When: {session.time || 'Time not specified'}</Text>
-                </Card.Content>
-              </Card>
-            ))
-          ) : (
-            <Text>No upcoming sessions.</Text>
-          )}
-        </View>
   
         <View style={styles.section}>
           <Text style={styles.subHeader}>Your Students:</Text>
