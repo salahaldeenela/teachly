@@ -53,8 +53,10 @@ const TutorHomePage = () => {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+        <Text>Gender: {selectedTutor.gender || 'Not specified'}</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
+        <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
 
         <Text style={styles.subHeader}>Available Sessions:</Text>
         {selectedTutor.sessions?.length > 0 ? (

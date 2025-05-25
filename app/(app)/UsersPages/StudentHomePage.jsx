@@ -163,6 +163,7 @@ const StudentHomePage = ({ navigation }) => {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+        <Text>Gender: {selectedTutor.gender || 'Not specified'}</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>

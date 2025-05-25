@@ -209,7 +209,7 @@ const TutorProfile = ({ user }) => {
           style={[styles.input, styles.descriptionInput]}
           value={tutor.experince}
           onChangeText={(text) => setTutor({ ...tutor, experince: text })}
-          placeholder="About you and your teaching approach"
+          placeholder="Your Experince"
           multiline
           editable={!saving}
         />
