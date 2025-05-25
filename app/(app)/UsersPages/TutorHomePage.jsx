@@ -54,7 +54,6 @@ const TutorHomePage = () => {
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
-        <Text>Price: {selectedTutor.price || 'Not specified'} JD/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
 
         <Text style={styles.subHeader}>Available Sessions:</Text>
@@ -189,7 +188,7 @@ const TutorHomePage = () => {
               <Card style={styles.card}>
                 <Card.Title 
                   title={item.name || 'No name'} 
-                  subtitle={`${item.province || 'Location not specified'} | ${item.price || '?'} JD/hour`} 
+                  subtitle={`${item.province || 'Location not specified'} `} 
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(item)}</Text>

@@ -292,21 +292,6 @@ const TutorProfile = ({ user }) => {
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pricing</Text>
-        <TextInput
-          style={styles.input}
-          value={String(tutor.price)}
-          onChangeText={(text) => setTutor({ 
-            ...tutor, 
-            price: Math.max(0, Number(text) || 0)
-          })}
-          placeholder="Default hourly rate (SAR)"
-          keyboardType="numeric"
-          editable={!saving}
-        />
-      </View>
-
       <View style={styles.reviewList}>
         <Text style={styles.sectionTitle}>Reviews</Text>
         {tutor.reviews?.length > 0 ? (
