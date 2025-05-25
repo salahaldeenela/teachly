@@ -33,7 +33,7 @@ const TutorCalendar = () => {
     date: '',
     time: '',
     duration: 1,
-    price: 0,
+    price: 10,
     status: 'available'
   });
 
@@ -77,6 +77,21 @@ const TutorCalendar = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const parseTimeToDate = (timeString, referenceDate) => {
+    const [timePart, period] = timeString.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    const date = new Date(referenceDate);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
   const handleTimeChange = (event, selectedTime) => {
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedTime) {
@@ -93,28 +108,41 @@ const TutorCalendar = () => {
     }
   };
 
+  const checkForOverlaps = (newSessionStart, newSessionEnd) => {
+    return upcomingSessions.some(session => {
+      if (session.status === 'completed') return false;
+      
+      const [year, month, day] = session.date.split('-').map(Number);
+      const sessionStart = parseTimeToDate(session.time, new Date(year, month - 1, day));
+      const sessionEnd = new Date(sessionStart.getTime() + session.duration * 60 * 60 * 1000);
+      
+      return (
+        (newSessionStart >= sessionStart && newSessionStart < sessionEnd) ||
+        (newSessionEnd > sessionStart && newSessionEnd <= sessionEnd) ||
+        (newSessionStart <= sessionStart && newSessionEnd >= sessionEnd)
+      );
+    });
+  };
+
   const validateSession = () => {
     if (!newSession.subject) return 'Please select a subject';
     if (!newSession.date) return 'Please select a date';
     if (!newSession.time) return 'Please select a time';
     if (newSession.duration < 0.5 || newSession.duration > 8) return 'Duration must be between 0.5 and 8 hours';
     if (newSession.price < 0) return 'Price cannot be negative';
+    if (newSession.price > 1000) return 'Price is too high';
 
-    const [timePart, period] = newSession.time.split(' ');
-    let [hours, minutes] = timePart.split(':').map(Number);
-    
-    if (period === 'PM' && hours !== 12) {
-      hours += 12;
-    } else if (period === 'AM' && hours === 12) {
-      hours = 0;
-    }
-    
     const [year, month, day] = newSession.date.split('-').map(Number);
-    const sessionDate = new Date(year, month - 1, day, hours, minutes);
+    const sessionStart = parseTimeToDate(newSession.time, new Date(year, month - 1, day));
+    const sessionEnd = new Date(sessionStart.getTime() + newSession.duration * 60 * 60 * 1000);
     const now = new Date();
     
-    if (sessionDate <= now) {
+    if (sessionStart <= now) {
       return 'Session time must be in the future';
+    }
+    
+    if (checkForOverlaps(sessionStart, sessionEnd)) {
+      return 'This session overlaps with an existing session';
     }
     
     return null;
@@ -147,7 +175,7 @@ const TutorCalendar = () => {
         date: '',
         time: '',
         duration: 1,
-        price: 0,
+        price: 10,
         status: 'available'
       });
       setShowAddSessionUI(false);
@@ -159,6 +187,7 @@ const TutorCalendar = () => {
       setSaving(false);
     }
   };
+
 
   const handleDeleteSession = async (sessionId) => {
     try {
@@ -288,35 +317,95 @@ const TutorCalendar = () => {
               />
             )}
 
-            <View style={styles.rowInputs}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={String(newSession.duration)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  duration: Math.max(0.5, Math.min(8, Number(text) || 1))
-                })}
-                placeholder="Duration (hours)"
-                keyboardType="numeric"
-                editable={!saving}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                value={String(newSession.price)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  price: Math.max(0, Number(text) || 0)
-                })}
-                placeholder="Price (JD)"
-                keyboardType="numeric"
-                editable={!saving}
-              />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Duration (hours):</Text>
+              <View style={styles.numberInputContainer}>
+                <TouchableOpacity 
+                  style={styles.numberInputButton}
+                  onPress={() => setNewSession({
+                    ...newSession,
+                    duration: Math.max(0.5, newSession.duration - 0.5)
+                  })}
+                  disabled={newSession.duration <= 0.5 || saving}
+                >
+                  <Text style={styles.numberInputButtonText}>-</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.numberInput]}
+                  value={String(newSession.duration)}
+                  onChangeText={(text) => {
+                    const num = Number(text);
+                    if (!isNaN(num)) {
+                      setNewSession({
+                        ...newSession, 
+                        duration: Math.max(0.5, Math.min(8, num))
+                      });
+                    }
+                  }}
+                  keyboardType="numeric"
+                  editable={!saving}
+                />
+                <TouchableOpacity 
+                  style={styles.numberInputButton}
+                  onPress={() => setNewSession({
+                    ...newSession,
+                    duration: Math.min(8, newSession.duration + 0.5)
+                  })}
+                  disabled={newSession.duration >= 8 || saving}
+                >
+                  <Text style={styles.numberInputButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.inputHint}>Must be between 0.5 and 8 hours</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Price (JD):</Text>
+              <View style={styles.numberInputContainer}>
+                <TouchableOpacity 
+                  style={styles.numberInputButton}
+                  onPress={() => setNewSession({
+                    ...newSession,
+                    price: Math.max(0, newSession.price - 5)
+                  })}
+                  disabled={newSession.price <= 0 || saving}
+                >
+                  <Text style={styles.numberInputButtonText}>-</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.numberInput]}
+                  value={String(newSession.price)}
+                  onChangeText={(text) => {
+                    const num = Number(text);
+                    if (!isNaN(num)) {
+                      setNewSession({
+                        ...newSession, 
+                        price: Math.max(0, Math.min(1000, num))
+                      });
+                    }
+                  }}
+                  keyboardType="numeric"
+                  editable={!saving}
+                />
+                <TouchableOpacity 
+                  style={styles.numberInputButton}
+                  onPress={() => setNewSession({
+                    ...newSession,
+                    price: Math.min(1000, newSession.price + 5)
+                  })}
+                  disabled={newSession.price >= 1000 || saving}
+                >
+                  <Text style={styles.numberInputButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.inputHint}>Price per session</Text>
             </View>
 
             <Button 
               title="Add Session" 
               onPress={handleAddSession} 
               disabled={saving}
+              color="#3498db"
             />
           </View>
         )}
@@ -449,8 +538,22 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0', 
     borderRadius: 8, 
     padding: 12, 
-    marginBottom: 15, 
+    marginBottom: 5, 
     backgroundColor: '#FAFAFA',
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  inputHint: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
   },
   rowInputs: {
     flexDirection: 'row', 
@@ -464,6 +567,29 @@ const styles = StyleSheet.create({
   timeInput: {
     justifyContent: 'center',
     paddingVertical: 12,
+  },
+  numberInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  numberInput: {
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 5,
+  },
+  numberInputButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+  },
+  numberInputButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   sessionCard: { 
     marginBottom: 15,
