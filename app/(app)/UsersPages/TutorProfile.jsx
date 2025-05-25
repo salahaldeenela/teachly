@@ -198,13 +198,12 @@ const TutorProfile = ({ user }) => {
             onValueChange={(value) => setTutor({ ...tutor, province: value })}
             enabled={!saving}
           >
-            <Picker.Item label="Select Province" value="" />
             {provincesData.map((province, idx) => (
               <Picker.Item key={idx} label={province} value={province} />
             ))}
           </Picker>
         </View>
-
+        
         <TextInput
           style={[styles.input, styles.descriptionInput]}
           value={tutor.experince}
