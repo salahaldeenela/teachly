@@ -148,18 +148,6 @@ const StudentProfile = ({ user }) => {
         multiline
       />
 
-      {/* Sessions Registered */}
-      <Text style={styles.subtitle}>Sessions Registered</Text>
-      {student.sessionsRegistered.length === 0 ? (
-        <Text style={styles.textMuted}>No sessions registered yet.</Text>
-      ) : (
-        student.sessionsRegistered.map((session, idx) => (
-          <View key={idx} style={styles.sessionItem}>
-            <Text>Session {idx + 1}: {session}</Text>
-          </View>
-        ))
-      )}
-
       {/* Save Button */}
       <TouchableOpacity
         style={[styles.saveButton, saving && styles.disabledButton]}
