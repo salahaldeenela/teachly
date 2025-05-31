@@ -3,25 +3,24 @@ import {
   View,
   Text,
   TextInput,
+  Button,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
   Alert,
-  TouchableOpacity,
+  TouchableOpacity
 } from 'react-native';
-import { Button } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useAuth } from '../../../context/authContext';
 
 const StudentProfile = ({ user }) => {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { logout } = useAuth();
+
   useEffect(() => {
     const fetchStudent = async () => {
       try {
@@ -149,19 +148,7 @@ const StudentProfile = ({ user }) => {
         multiline
       />
 
-      <Text style={styles.subtitle}>Sessions Registered</Text>
-      {student.sessionsRegistered.length === 0 ? (
-        <Text style={styles.textMuted}>No sessions registered yet.</Text>
-      ) : (
-        student.sessionsRegistered.map((session, idx) => (
-          <View key={idx} style={styles.sessionItem}>
-            <Text>
-              Session {idx + 1}: {session}
-            </Text>
-          </View>
-        ))
-      )}
-
+      {/* Save Button */}
       <TouchableOpacity
         style={[styles.saveButton, saving && styles.disabledButton]}
         onPress={handleSave}
@@ -171,9 +158,6 @@ const StudentProfile = ({ user }) => {
           {saving ? 'Saving...' : 'Save Changes'}
         </Text>
       </TouchableOpacity>
-      <Button onPress={logout} mode="contained" style={styles.logoutButton}>
-        Logout
-      </Button>
     </ScrollView>
   );
 };

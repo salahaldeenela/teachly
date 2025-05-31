@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  Button, 
+  StyleSheet, 
+  ActivityIndicator, 
+  TouchableOpacity, 
+  ScrollView, 
+  Alert 
 } from 'react-native';
-import { Button } from 'react-native-paper';
-import { Picker } from '@react-native-picker/picker';
+import { Picker } from '@react-native-picker/picker'; 
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useAuth } from '../../../context/authContext';
 
 const TutorProfile = ({ user }) => {
   const [tutor, setTutor] = useState(null);
@@ -24,40 +23,12 @@ const TutorProfile = ({ user }) => {
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [showAddGradeUI, setShowAddGradeUI] = useState(false);
-  const { logout } = useAuth();
-
+  
   const gradesData = {
     'Grade 1-3': ['Arabic', 'Math', 'Science', 'Islamic Studies', 'English'],
-    'Grade 4-6': [
-      'Arabic',
-      'Math',
-      'Science',
-      'Social Studies',
-      'Islamic Studies',
-      'English',
-    ],
-    'Grade 7-9': [
-      'Arabic',
-      'Math',
-      'Science',
-      'Social Studies',
-      'Islamic Studies',
-      'English',
-      'History',
-      'Geography',
-    ],
-    'Grade 10-12': [
-      'Arabic',
-      'Math',
-      'Physics',
-      'Chemistry',
-      'Biology',
-      'History',
-      'Geography',
-      'Islamic Studies',
-      'English',
-      'Economics',
-    ],
+    'Grade 4-6': ['Arabic', 'Math', 'Science', 'Social Studies', 'Islamic Studies', 'English'],
+    'Grade 7-9': ['Arabic', 'Math', 'Science', 'Social Studies', 'Islamic Studies', 'English', 'History', 'Geography'],
+    'Grade 10-12': ['Arabic', 'Math', 'Physics', 'Chemistry', 'Biology', 'History', 'Geography', 'Islamic Studies', 'English', 'Economics'],
   };
 
   useEffect(() => {
@@ -85,19 +56,13 @@ const TutorProfile = ({ user }) => {
     };
 
     const processTutorData = (tutorData) => {
-      if (
-        tutorData.grade &&
-        typeof tutorData.grade === 'object' &&
-        !Array.isArray(tutorData.grade)
-      ) {
-        tutorData.grade = Object.entries(tutorData.grade).map(
-          ([grade, subjects]) => ({
-            grade,
-            subjects: Array.isArray(subjects) ? subjects : [],
-          }),
-        );
+      if (tutorData.grade && typeof tutorData.grade === 'object' && !Array.isArray(tutorData.grade)) {
+        tutorData.grade = Object.entries(tutorData.grade).map(([grade, subjects]) => ({
+          grade,
+          subjects: Array.isArray(subjects) ? subjects : []
+        }));
       }
-
+      
       setTutor(tutorData);
     };
 
@@ -108,19 +73,19 @@ const TutorProfile = ({ user }) => {
     try {
       setSaving(true);
       const docRef = doc(db, 'users', user.userID);
-
+      
       const gradeObject = {};
       if (tutor.grade) {
-        tutor.grade.forEach((item) => {
+        tutor.grade.forEach(item => {
           gradeObject[item.grade] = item.subjects;
         });
       }
-
+      
       await updateDoc(docRef, {
         ...tutor,
         grade: gradeObject,
       });
-
+      
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
       console.error('Error saving tutor data:', error);
@@ -136,14 +101,11 @@ const TutorProfile = ({ user }) => {
       return;
     }
 
-    const newGrade = [
-      ...(tutor.grade || []),
-      {
-        grade: selectedGrade,
-        subjects: selectedSubjects,
-      },
-    ];
-
+    const newGrade = [...(tutor.grade || []), { 
+      grade: selectedGrade, 
+      subjects: selectedSubjects 
+    }];
+    
     setTutor({ ...tutor, grade: newGrade });
     setSelectedGrade('');
     setSelectedSubjects([]);
@@ -151,15 +113,15 @@ const TutorProfile = ({ user }) => {
   };
 
   const handleDeleteGrade = (gradeToDelete) => {
-    const updatedGrade = tutor.grade.filter((g) => g.grade !== gradeToDelete);
+    const updatedGrade = tutor.grade.filter(g => g.grade !== gradeToDelete);
     setTutor({ ...tutor, grade: updatedGrade });
   };
 
   const handleToggleSubject = (subject) => {
-    setSelectedSubjects((prev) =>
-      prev.includes(subject)
-        ? prev.filter((s) => s !== subject)
-        : [...prev, subject],
+    setSelectedSubjects(prev => 
+      prev.includes(subject) 
+        ? prev.filter(s => s !== subject) 
+        : [...prev, subject]
     );
   };
 
@@ -181,7 +143,10 @@ const TutorProfile = ({ user }) => {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Could not load tutor information.</Text>
-        <Button title="Try Again" onPress={() => window.location.reload()} />
+        <Button 
+          title="Try Again" 
+          onPress={() => window.location.reload()} 
+        />
       </View>
     );
   }
@@ -190,17 +155,18 @@ const TutorProfile = ({ user }) => {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.profileHeader}>
         <View style={styles.profileImagePlaceholder}>
-          <FontAwesome5
-            name={tutor.gender === 'female' ? 'user-alt' : 'user'}
-            size={60}
-            color="#555"
-          />
-        </View>
+             <FontAwesome5 
+              name={tutor.gender === 'female' ? 'user-alt' : 'user'} 
+              size={60} 
+              color="#555" 
+             />
+          </View>
         <Text style={styles.title}>Tutor Profile</Text>
       </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Basic Information</Text>
-
+        
         <TextInput
           style={styles.input}
           value={tutor.name}
@@ -232,26 +198,26 @@ const TutorProfile = ({ user }) => {
             onValueChange={(value) => setTutor({ ...tutor, province: value })}
             enabled={!saving}
           >
-            <Picker.Item label="Select Province" value="" />
             {provincesData.map((province, idx) => (
               <Picker.Item key={idx} label={province} value={province} />
             ))}
           </Picker>
         </View>
-
+        
         <TextInput
           style={[styles.input, styles.descriptionInput]}
           value={tutor.experince}
           onChangeText={(text) => setTutor({ ...tutor, experince: text })}
-          placeholder="About you and your teaching approach"
+          placeholder="Your Experince"
           multiline
           editable={!saving}
         />
       </View>
+
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Grades and Subjects</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             onPress={() => setShowAddGradeUI(!showAddGradeUI)}
             disabled={saving}
           >
@@ -263,9 +229,9 @@ const TutorProfile = ({ user }) => {
           <View key={idx} style={styles.gradeItem}>
             <Text style={styles.gradeTitle}>{g.grade}</Text>
             <Text>Subjects: {g.subjects?.join(', ') || 'None'}</Text>
-            <Button
-              title="Remove Grade"
-              onPress={() => handleDeleteGrade(g.grade)}
+            <Button 
+              title="Remove Grade" 
+              onPress={() => handleDeleteGrade(g.grade)} 
               color="#FF3B30"
               disabled={saving}
             />
@@ -282,7 +248,7 @@ const TutorProfile = ({ user }) => {
                   key={grade}
                   style={[
                     styles.gradeButton,
-                    selectedGrade === grade && styles.selectedGradeButton,
+                    selectedGrade === grade && styles.selectedGradeButton
                   ]}
                   onPress={() => {
                     setSelectedGrade(grade);
@@ -297,17 +263,14 @@ const TutorProfile = ({ user }) => {
 
             {selectedGrade && (
               <>
-                <Text style={styles.subtitle}>
-                  Select Subjects for {selectedGrade}
-                </Text>
+                <Text style={styles.subtitle}>Select Subjects for {selectedGrade}</Text>
                 <View style={styles.subjectsList}>
                   {gradesData[selectedGrade].map((subject) => (
                     <TouchableOpacity
                       key={subject}
                       style={[
                         styles.subjectItem,
-                        selectedSubjects.includes(subject) &&
-                          styles.selectedSubject,
+                        selectedSubjects.includes(subject) && styles.selectedSubject
                       ]}
                       onPress={() => handleToggleSubject(subject)}
                       disabled={saving}
@@ -317,34 +280,17 @@ const TutorProfile = ({ user }) => {
                   ))}
                 </View>
 
-                <Button
-                  title="Add Grade Level"
-                  onPress={handleAddGrade}
-                  disabled={
-                    !selectedGrade || selectedSubjects.length === 0 || saving
-                  }
+                <Button 
+                  title="Add Grade Level" 
+                  onPress={handleAddGrade} 
+                  disabled={!selectedGrade || selectedSubjects.length === 0 || saving}
                 />
               </>
             )}
           </View>
         )}
       </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pricing</Text>
-        <TextInput
-          style={styles.input}
-          value={String(tutor.price)}
-          onChangeText={(text) =>
-            setTutor({
-              ...tutor,
-              price: Math.max(0, Number(text) || 0),
-            })
-          }
-          placeholder="Default hourly rate (SAR)"
-          keyboardType="numeric"
-          editable={!saving}
-        />
-      </View>
+
       <View style={styles.reviewList}>
         <Text style={styles.sectionTitle}>Reviews</Text>
         {tutor.reviews?.length > 0 ? (
@@ -358,6 +304,7 @@ const TutorProfile = ({ user }) => {
           <Text>No reviews yet.</Text>
         )}
       </View>
+      
       {tutor.reviews?.length > 0 && (
         <View style={styles.averageRatingContainer}>
           <Text style={styles.averageRatingLabel}>Rating:</Text>
@@ -375,17 +322,14 @@ const TutorProfile = ({ user }) => {
           </View>
         </View>
       )}
-
-      <Button
-        title={saving ? 'Saving...' : 'Save All Changes'}
-        onPress={handleSaveProfile}
+      
+      <Button 
+        title={saving ? "Saving..." : "Save All Changes"} 
+        onPress={handleSaveProfile} 
         disabled={saving}
         style={styles.saveButton}
         mode="contained"
       />
-      <Button onPress={logout} mode="contained" style={styles.logoutButton}>
-        Logout
-      </Button>
     </ScrollView>
   );
 };
@@ -578,54 +522,55 @@ const styles = StyleSheet.create({
     color: '#555',
   },
 
-  reviewList: {
-    borderTopWidth: 1,
-    borderTopColor: '#ccc',
-    paddingTop: 10,
-  },
+reviewList: {
+  borderTopWidth: 1,
+  borderTopColor: '#ccc',
+  paddingTop: 10,
+},
 
-  reviewItem: {
-    marginBottom: 10,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 8,
-  },
+reviewItem: {
+  marginBottom: 10,
+  backgroundColor: '#f5f5f5',
+  padding: 10,
+  borderRadius: 8,
+},
 
-  reviewRating: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
+reviewRating: {
+  fontWeight: 'bold',
+  marginBottom: 4,
+},
 
-  reviewComment: {
-    marginBottom: 4,
-  },
-  averageRatingContainer: {
-    marginBottom: 12,
-    padding: 10,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    alignItems: 'flex-start',
-  },
-  averageRatingLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#333',
-  },
-  starsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  star: {
-    fontSize: 45,
-    color: '#f5a623', // golden color
-    marginRight: 2,
-  },
-  avgValueText: {
-    fontSize: 16,
-    marginLeft: 8,
-    color: '#555',
-  },
+reviewComment: {
+  marginBottom: 4,
+},
+averageRatingContainer: {
+  marginBottom: 12,
+  padding: 10,
+  backgroundColor: '#f9f9f9',
+  borderRadius: 8,
+  alignItems: 'flex-start',
+},
+averageRatingLabel: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 4,
+  color: '#333',
+},
+starsRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+star: {
+  fontSize: 45,
+  color: '#f5a623', // golden color
+  marginRight: 2,
+},
+avgValueText: {
+  fontSize: 16,
+  marginLeft: 8,
+  color: '#555',
+},
+
 });
 
 export default TutorProfile;
