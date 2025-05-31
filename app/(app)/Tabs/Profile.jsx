@@ -3,10 +3,9 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../../context/authContext';
 import StudentProfile from '../UsersPages/StudentProfile';
 import TutorProfile from '../UsersPages/TutorProfile';
-
+import { Button, Card } from 'react-native-paper';
 const Profile = () => {
   const { user } = useAuth();
-
 
   if (!user) {
     return (
@@ -17,7 +16,11 @@ const Profile = () => {
   }
 
   if (user.userType === 'student') {
-    return <StudentProfile user={user} />;
+    return (
+      <>
+        <StudentProfile user={user} />;
+      </>
+    );
   }
 
   if (user.userType === 'tutor') {

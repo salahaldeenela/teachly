@@ -58,3 +58,9 @@ export const provincesData = [
   'Tafilah',
   'Aqaba',
 ];
+
+export const getRoomId = (userId1, userId2) => {
+  const soretedIds = [userId1, userId2].sort();
+  const roomId = soretedIds.join('-');
+  return roomId;
+};

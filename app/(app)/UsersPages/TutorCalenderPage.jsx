@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  ActivityIndicator, 
-  Button, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Button,
   TextInput,
   TouchableOpacity,
-  Alert
+  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Card } from 'react-native-paper';
@@ -23,27 +23,27 @@ const TutorCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddSessionUI, setShowAddSessionUI] = useState(false);
-  
+
   const [newSession, setNewSession] = useState({
     subject: '',
     date: '',
     time: '',
     duration: 1,
     price: 0,
-    status: 'available'
+    status: 'available',
   });
 
   const availableSubjects = [
     'Arabic',
-      'Math',
-      'Physics',
-      'Chemistry',
-      'Biology',
-      'History',
-      'Geography',
-      'Islamic Studies',
-      'English',
-      'Economics',
+    'Math',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'History',
+    'Geography',
+    'Islamic Studies',
+    'English',
+    'Economics',
   ];
 
   useEffect(() => {
@@ -81,15 +81,15 @@ const TutorCalendar = () => {
         duration: newSession.duration || 1,
         price: newSession.price || 0,
         status: 'available',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       const tutorRef = doc(db, 'users', user.userID);
       await updateDoc(tutorRef, {
-        sessions: arrayUnion(sessionToAdd)
+        sessions: arrayUnion(sessionToAdd),
       });
 
-      setUpcomingSessions(prev => [...prev, sessionToAdd]);
+      setUpcomingSessions((prev) => [...prev, sessionToAdd]);
 
       setNewSession({
         subject: '',
@@ -97,7 +97,7 @@ const TutorCalendar = () => {
         time: '',
         duration: 1,
         price: 0,
-        status: 'available'
+        status: 'available',
       });
       setShowAddSessionUI(false);
 
@@ -114,17 +114,17 @@ const TutorCalendar = () => {
     try {
       setSaving(true);
       const tutorRef = doc(db, 'users', user.userID);
-      
-      const sessionToRemove = upcomingSessions.find(s => s.id === sessionId);
+
+      const sessionToRemove = upcomingSessions.find((s) => s.id === sessionId);
       if (!sessionToRemove) {
         throw new Error('Session not found');
       }
 
       await updateDoc(tutorRef, {
-        sessions: arrayRemove(sessionToRemove)
+        sessions: arrayRemove(sessionToRemove),
       });
 
-      setUpcomingSessions(prev => prev.filter(s => s.id !== sessionId));
+      setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
 
       Alert.alert('Success', 'Session deleted successfully!');
     } catch (error) {
@@ -139,8 +139,10 @@ const TutorCalendar = () => {
     try {
       setSaving(true);
       const tutorRef = doc(db, 'users', user.userID);
-      
-      const sessionIndex = upcomingSessions.findIndex(s => s.id === sessionId);
+
+      const sessionIndex = upcomingSessions.findIndex(
+        (s) => s.id === sessionId,
+      );
       if (sessionIndex === -1) {
         throw new Error('Session not found');
       }
@@ -148,15 +150,15 @@ const TutorCalendar = () => {
       const updatedSession = {
         ...upcomingSessions[sessionIndex],
         status: 'completed',
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
       };
 
       await updateDoc(tutorRef, {
-        sessions: arrayRemove(upcomingSessions[sessionIndex])
+        sessions: arrayRemove(upcomingSessions[sessionIndex]),
       });
 
       await updateDoc(tutorRef, {
-        sessions: arrayUnion(updatedSession)
+        sessions: arrayUnion(updatedSession),
       });
 
       const updatedSessions = [...upcomingSessions];
@@ -176,10 +178,10 @@ const TutorCalendar = () => {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         <Text style={styles.header}>Your Schedule</Text>
-        
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Manage Sessions</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setShowAddSessionUI(!showAddSessionUI)}
             disabled={saving}
           >
@@ -192,8 +194,8 @@ const TutorCalendar = () => {
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={newSession.subject}
-                onValueChange={(itemValue) => 
-                  setNewSession({...newSession, subject: itemValue})
+                onValueChange={(itemValue) =>
+                  setNewSession({ ...newSession, subject: itemValue })
                 }
                 style={styles.picker}
                 dropdownIconColor="#000"
@@ -209,14 +211,18 @@ const TutorCalendar = () => {
               <TextInput
                 style={[styles.input, styles.halfInput]}
                 value={newSession.date}
-                onChangeText={(text) => setNewSession({...newSession, date: text})}
+                onChangeText={(text) =>
+                  setNewSession({ ...newSession, date: text })
+                }
                 placeholder="Date (YYYY-MM-DD)"
                 editable={!saving}
               />
               <TextInput
                 style={[styles.input, styles.halfInput]}
                 value={newSession.time}
-                onChangeText={(text) => setNewSession({...newSession, time: text})}
+                onChangeText={(text) =>
+                  setNewSession({ ...newSession, time: text })
+                }
                 placeholder="Time (HH:MM AM/PM)"
                 editable={!saving}
               />
@@ -226,10 +232,12 @@ const TutorCalendar = () => {
               <TextInput
                 style={[styles.input, styles.halfInput]}
                 value={String(newSession.duration)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  duration: Math.max(1, Number(text) || 1)
-                })}
+                onChangeText={(text) =>
+                  setNewSession({
+                    ...newSession,
+                    duration: Math.max(1, Number(text) || 1),
+                  })
+                }
                 placeholder="Duration (hours)"
                 keyboardType="numeric"
                 editable={!saving}
@@ -237,23 +245,25 @@ const TutorCalendar = () => {
               <TextInput
                 style={[styles.input, styles.halfInput]}
                 value={String(newSession.price)}
-                onChangeText={(text) => setNewSession({
-                  ...newSession, 
-                  price: Math.max(0, Number(text) || 0)
-                })}
+                onChangeText={(text) =>
+                  setNewSession({
+                    ...newSession,
+                    price: Math.max(0, Number(text) || 0),
+                  })
+                }
                 placeholder="Price (JD)"
                 keyboardType="numeric"
                 editable={!saving}
               />
             </View>
 
-            <Button 
-              title="Add Session" 
-              onPress={handleAddSession} 
+            <Button
+              title="Add Session"
+              onPress={handleAddSession}
               disabled={
-                !newSession.subject || 
-                !newSession.date || 
-                !newSession.time || 
+                !newSession.subject ||
+                !newSession.date ||
+                !newSession.time ||
                 saving
               }
             />
@@ -261,42 +271,52 @@ const TutorCalendar = () => {
         )}
 
         <Text style={styles.header}>Your Upcoming Sessions</Text>
-        
+
         {loading ? (
           <ActivityIndicator size="large" style={styles.loader} />
         ) : upcomingSessions.length > 0 ? (
           upcomingSessions.map((session) => (
-            <Card key={session.id} style={[
-              styles.sessionCard,
-              session.status === 'completed' && styles.completedSessionCard
-            ]}>
+            <Card
+              key={session.id}
+              style={[
+                styles.sessionCard,
+                session.status === 'completed' && styles.completedSessionCard,
+              ]}
+            >
               <Card.Content>
-                <Text style={styles.sessionTitle}>{session.subject || 'No subject specified'}</Text>
+                <Text style={styles.sessionTitle}>
+                  {session.subject || 'No subject specified'}
+                </Text>
                 <Text>Date: {session.date || 'Date not specified'}</Text>
                 <Text>Time: {session.time || 'Time not specified'}</Text>
-                <Text>Duration: {session.duration || 1} hour{session.duration !== 1 ? 's' : ''}</Text>
+                <Text>
+                  Duration: {session.duration || 1} hour
+                  {session.duration !== 1 ? 's' : ''}
+                </Text>
                 <Text>Price: {session.price || 0} JD</Text>
                 <Text>Status: {session.status || 'available'}</Text>
-                
+
                 <View style={styles.buttonContainer}>
                   {session.status !== 'completed' && (
                     <>
-                      <Button 
-                        title="Cancel Session" 
-                        onPress={() => handleDeleteSession(session.id)} 
+                      <Button
+                        title="Cancel Session"
+                        onPress={() => handleDeleteSession(session.id)}
                         color="#FF3B30"
                         disabled={saving}
                       />
-                      <Button 
-                        title="Mark Completed" 
-                        onPress={() => handleCompleteSession(session.id)} 
+                      <Button
+                        title="Mark Completed"
+                        onPress={() => handleCompleteSession(session.id)}
                         color="#4CAF50"
                         disabled={saving}
                       />
                     </>
                   )}
                   {session.status === 'completed' && (
-                    <Text style={styles.completedText}>This session is completed</Text>
+                    <Text style={styles.completedText}>
+                      This session is completed
+                    </Text>
                   )}
                 </View>
               </Card.Content>
@@ -371,7 +391,7 @@ const styles = StyleSheet.create({
   sessionCard: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: '#f9f9f9'
+    backgroundColor: '#f9f9f9',
   },
   completedSessionCard: {
     backgroundColor: '#e8f5e9',
@@ -381,7 +401,7 @@ const styles = StyleSheet.create({
   sessionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5
+    marginBottom: 5,
   },
   buttonContainer: {
     marginTop: 10,
@@ -395,8 +415,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   loader: {
-    marginVertical: 20
-  }
+    marginVertical: 20,
+  },
 });
 
 export default TutorCalendar;
