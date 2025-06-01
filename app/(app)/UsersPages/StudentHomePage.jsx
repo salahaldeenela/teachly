@@ -164,7 +164,6 @@ const onRefresh = async () => {
       }));
       
       Alert.alert('Success', 'Session booked successfully!');
-      navigation.navigate('Calendar'); // Navigate to calendar after booking
     } catch (error) {
       console.error('Error booking session:', error);
       Alert.alert('Error', error.message || 'Failed to book session');

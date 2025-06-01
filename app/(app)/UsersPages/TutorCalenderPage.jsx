@@ -1,34 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  ActivityIndicator, 
-  Button, 
-  TextInput,
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Platform,
-  RefreshControl
+  RefreshControl,
+  Button,
+  TextInput,
+  Platform
 } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { Picker } from '@react-native-picker/picker';
-import { Card } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../../context/authContext';
 import { fetchTutorSessions } from './SharedHomeUtils';
 import { db } from '../../../firebaseConfig';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
-const TutorCalendar = () => {
+const TutorCalendar = () => { 
   const { user } = useAuth();
-  const [upcomingSessions, setUpcomingSessions] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [selectedDate, setSelectedDate] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddSessionUI, setShowAddSessionUI] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [refreshing, setRefreshing] = useState(false); 
+  const [saving, setSaving] = useState(false);
 
   const [newSession, setNewSession] = useState({
     subject: '',
@@ -43,12 +44,13 @@ const TutorCalendar = () => {
     'Arabic', 'Math', 'Physics', 'Chemistry', 'Biology',
     'History', 'Geography', 'Islamic Studies', 'English', 'Economics',
   ];
+
   const loadSessions = async () => {
     try {
       setLoading(true);
       if (user) {
         const sessions = await fetchTutorSessions(user.userID);
-        setUpcomingSessions(sessions);
+        setSessions(sessions);
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
@@ -57,9 +59,9 @@ const TutorCalendar = () => {
     }
   };
 
-useEffect(() => {
-  loadSessions();
-}, [user]);
+  useEffect(() => {
+    loadSessions();
+  }, [user]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -116,7 +118,7 @@ useEffect(() => {
   };
 
   const checkForOverlaps = (newSessionStart, newSessionEnd) => {
-    return upcomingSessions.some(session => {
+    return sessions.some(session => {
       if (session.status === 'completed') return false;
       
       const [year, month, day] = session.date.split('-').map(Number);
@@ -139,7 +141,6 @@ useEffect(() => {
     if (newSession.price < 0) return 'Price cannot be negative';
     if (newSession.price > 1000) return 'Price is too high';
     
-
     const [year, month, day] = newSession.date.split('-').map(Number);
     const sessionStart = parseTimeToDate(newSession.time, new Date(year, month - 1, day));
     const sessionEnd = new Date(sessionStart.getTime() + newSession.duration * 60 * 60 * 1000);
@@ -177,7 +178,7 @@ useEffect(() => {
         sessions: arrayUnion(sessionToAdd)
       });
 
-      setUpcomingSessions(prev => [...prev, sessionToAdd]);
+      setSessions(prev => [...prev, sessionToAdd]);
       setNewSession({
         subject: '',
         date: '',
@@ -196,70 +197,46 @@ useEffect(() => {
     }
   };
 
+  const handleComplete = async (session) => {
+    const tutorRef = doc(db, 'users', user.userID);
+    const updated = { ...session, status: 'completed', completedAt: new Date().toISOString() };
 
-  const handleDeleteSession = async (sessionId) => {
-    try {
-      setSaving(true);
-      const tutorRef = doc(db, 'users', user.userID);
-      const sessionToRemove = upcomingSessions.find(s => s.id === sessionId);
-      if (!sessionToRemove) throw new Error('Session not found');
+    await updateDoc(tutorRef, {
+      sessions: arrayRemove(session)
+    });
+    await updateDoc(tutorRef, {
+      sessions: arrayUnion(updated)
+    });
 
-      await updateDoc(tutorRef, {
-        sessions: arrayRemove(sessionToRemove)
-      });
-
-      setUpcomingSessions(prev => prev.filter(s => s.id !== sessionId));
-      Alert.alert('Success', 'Session deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      Alert.alert('Error', error.message || 'Failed to delete session');
-    } finally {
-      setSaving(false);
-    }
+    setSessions(prev => prev.map(s => (s.id === session.id ? updated : s)));
   };
 
-  const handleCompleteSession = async (sessionId) => {
-    try {
-      setSaving(true);
-      const tutorRef = doc(db, 'users', user.userID);
-      const sessionIndex = upcomingSessions.findIndex(s => s.id === sessionId);
-      if (sessionIndex === -1) throw new Error('Session not found');
+  const handleCancel = async (session) => {
+    const tutorRef = doc(db, 'users', user.userID);
+    await updateDoc(tutorRef, {
+      sessions: arrayRemove(session)
+    });
+    setSessions(prev => prev.filter(s => s.id !== session.id));
+  };
 
-      const updatedSession = {
-        ...upcomingSessions[sessionIndex],
-        status: 'completed',
-        completedAt: new Date().toISOString()
+  const markedDates = sessions.reduce((acc, session) => {
+    if (session.date) {
+      acc[session.date] = {
+        marked: true,
+        dotColor: session.status === 'completed' ? 'green' : 'blue'
       };
-
-      await updateDoc(tutorRef, {
-        sessions: arrayRemove(upcomingSessions[sessionIndex])
-      });
-      await updateDoc(tutorRef, {
-        sessions: arrayUnion(updatedSession)
-      });
-
-      const updatedSessions = [...upcomingSessions];
-      updatedSessions[sessionIndex] = updatedSession;
-      setUpcomingSessions(updatedSessions);
-
-      Alert.alert('Success', 'Session marked as completed!');
-    } catch (error) {
-      console.error('Error completing session:', error);
-      Alert.alert('Error', error.message || 'Failed to complete session');
-    } finally {
-      setSaving(false);
     }
-  };
+    return acc;
+  }, {});
+
+  const sessionsForSelectedDate = sessions.filter(s => s.date === selectedDate);
 
   return (
-    <ScrollView 
-      contentContainerStyle={styles.scrollContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+    <ScrollView
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.container}>
-        <Text style={styles.header}>Your Schedule</Text>
+        <Text style={styles.header}>Tutor Calendar</Text>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Manage Sessions</Text>
@@ -423,67 +400,42 @@ useEffect(() => {
           </View>
         )}
 
-        <Text style={styles.subHeader}>Upcoming Sessions</Text>
+        <Calendar
+          markedDates={{
+            ...markedDates,
+            [selectedDate]: { selected: true, selectedColor: 'orange' }
+          }}
+          onDayPress={day => setSelectedDate(day.dateString)}
+        />
 
-        {loading ? (
-          <ActivityIndicator size="large" style={styles.loader} />
-        ) : upcomingSessions.filter(s => s.status !== 'completed').length > 0 ? (
-          upcomingSessions
-            .filter(s => s.status !== 'completed')
-            .sort((a, b) => {
-              const dateA = new Date(`${a.date} ${a.time}`);
-              const dateB = new Date(`${b.date} ${b.time}`);
-              return dateA - dateB;
-            })
-            .map((session) => (
-              <Card key={session.id} style={styles.sessionCard}>
-                <Card.Content>
-                  <Text style={styles.sessionTitle}>{session.subject}</Text>
-                  <Text>Date: {session.date}</Text>
-                  <Text>Time: {session.time}</Text>
-                  <Text>Duration: {session.duration} hour{session.duration !== 1 ? 's' : ''}</Text>
-                  <Text>Price: {session.price} JD</Text>
-                  <Text>Status: {session.status}</Text>
+        {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
 
-                  <View style={styles.buttonContainer}>
-                    <Button 
-                      title="Cancel" 
-                      onPress={() => handleDeleteSession(session.id)} 
-                      color="#FF3B30"
-                      disabled={saving}
-                    />
-                    <Button 
-                      title="Complete" 
-                      onPress={() => handleCompleteSession(session.id)} 
-                      color="#4CAF50"
-                      disabled={saving}
-                    />
+        {selectedDate && (
+          <View style={styles.sessionList}>
+            <Text style={styles.dateTitle}>Sessions on {selectedDate}</Text>
+            {sessionsForSelectedDate.length === 0 && (
+              <Text>No sessions.</Text>
+            )}
+            {sessionsForSelectedDate.map(session => (
+              <View key={session.id} style={styles.sessionCard}>
+                <Text>Subject: {session.subject}</Text>
+                <Text>Time: {session.time}</Text>
+                <Text>Duration: {session.duration} hour{session.duration !== 1 ? 's' : ''}</Text>
+                <Text>Price: {session.price} JD</Text>
+                <Text>Status: {session.status}</Text>
+                {session.status !== 'completed' && (
+                  <View style={styles.actions}>
+                    <TouchableOpacity onPress={() => handleComplete(session)}>
+                      <Text style={styles.complete}>Complete</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleCancel(session)}>
+                      <Text style={styles.cancel}>Cancel</Text>
+                    </TouchableOpacity>
                   </View>
-                </Card.Content>
-              </Card>
-            ))
-        ) : (
-          <Text style={styles.noSessionsText}>No upcoming sessions</Text>
-        )}
-
-        <Text style={styles.subHeader}>Completed Sessions</Text>
-
-        {upcomingSessions.filter(s => s.status === 'completed').length > 0 ? (
-          upcomingSessions
-            .filter(s => s.status === 'completed')
-            .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-            .map((session) => (
-              <Card key={session.id} style={styles.completedSessionCard}>
-                <Card.Content>
-                  <Text style={styles.sessionTitle}>{session.subject}</Text>
-                  <Text>Date: {session.date}</Text>
-                  <Text>Time: {session.time}</Text>
-                  <Text>Completed on: {new Date(session.completedAt).toLocaleString()}</Text>
-                </Card.Content>
-              </Card>
-            ))
-        ) : (
-          <Text style={styles.noSessionsText}>No completed sessions</Text>
+                )}
+              </View>
+            ))}
+          </View>
         )}
       </View>
     </ScrollView>
@@ -491,26 +443,14 @@ useEffect(() => {
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: { 
-    paddingBottom: 40,
-    paddingTop: 20
+  container: {
+    padding: 16,
+    backgroundColor: '#fff'
   },
-  container: { 
-    padding: 20, 
-    flex: 1 
-  },
-  header: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 20,
-    color: '#2c3e50'
-  },
-  subHeader: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 25,
-    marginBottom: 15,
-    color: '#34495e'
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10
   },
   sectionHeader: {
     flexDirection: 'row', 
@@ -604,35 +544,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  sessionCard: { 
-    marginBottom: 15,
-    backgroundColor: '#ffffff',
-    elevation: 3
+  sessionList: {
+    marginTop: 20
   },
-  completedSessionCard: { 
-    backgroundColor: '#e8f5e9',
-    marginBottom: 15,
-    elevation: 2
+  dateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10
   },
-  sessionTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    marginBottom: 5,
-    color: '#2980b9'
+  sessionCard: {
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    marginBottom: 10
   },
-  buttonContainer: { 
-    marginTop: 10, 
-    gap: 10 
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10
   },
-  loader: { 
-    marginTop: 20,
-    marginBottom: 20
+  complete: {
+    color: 'green',
+    fontWeight: 'bold'
   },
-  noSessionsText: {
-    textAlign: 'center',
-    color: '#7f8c8d',
-    marginTop: 10,
-    fontStyle: 'italic'
+  cancel: {
+    color: 'red',
+    fontWeight: 'bold'
   }
 });
 

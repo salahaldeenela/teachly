@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  ActivityIndicator, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
   Button,
   Alert,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
 import { Card } from 'react-native-paper';
+import { Calendar } from 'react-native-calendars';
 import { auth, db } from '../../../firebaseConfig';
 import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -20,6 +21,7 @@ const StudentCalendar = () => {
   const [user, setUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -71,7 +73,7 @@ const StudentCalendar = () => {
       setSaving(true);
       const studentRef = doc(db, 'users', user.uid);
 
-      const sessionToRemove = upcomingSessions.find(s => s.id === sessionId);
+      const sessionToRemove = upcomingSessions.find((s) => s.id === sessionId);
       if (!sessionToRemove) throw new Error('Session not found');
 
       if (sessionToRemove.status === 'completed') {
@@ -80,10 +82,10 @@ const StudentCalendar = () => {
       }
 
       await updateDoc(studentRef, {
-        bookedSessions: arrayRemove(sessionToRemove)
+        bookedSessions: arrayRemove(sessionToRemove),
       });
 
-      setUpcomingSessions(prev => prev.filter(s => s.id !== sessionId));
+      setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
       Alert.alert('Success', 'Session cancelled successfully!');
     } catch (error) {
       console.error('Error cancelling session:', error);
@@ -92,6 +94,24 @@ const StudentCalendar = () => {
       setSaving(false);
     }
   };
+
+  const getMarkedDates = (sessions) => {
+    const marked = {};
+    sessions.forEach(({ date }) => {
+      marked[date] = {
+        marked: true,
+        dotColor: '#00adf5',
+      };
+    });
+    marked[selectedDate] = {
+      ...(marked[selectedDate] || {}),
+      selected: true,
+      selectedColor: '#00adf5',
+    };
+    return marked;
+  };
+
+  const filteredSessions = upcomingSessions.filter((session) => session.date === selectedDate);
 
   if (loading && !refreshing) {
     return (
@@ -104,19 +124,34 @@ const StudentCalendar = () => {
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.container}>
         <Text style={styles.header}>Your Sessions</Text>
-        
-        {upcomingSessions.length > 0 ? (
-          upcomingSessions.map((session) => (
-            <Card key={session.id} style={[
-              styles.sessionCard,
-              session.status === 'completed' && styles.completedSessionCard
-            ]}>
+
+        {/* Calendar View */}
+        <Calendar
+          markedDates={getMarkedDates(upcomingSessions)}
+          onDayPress={(day) => setSelectedDate(day.dateString)}
+          style={styles.calendar}
+          theme={{
+            selectedDayBackgroundColor: '#00adf5',
+            todayTextColor: '#00adf5',
+            arrowColor: '#00adf5',
+            dotColor: '#00adf5',
+          }}
+        />
+
+        {/* Session Cards for Selected Date */}
+        {filteredSessions.length > 0 ? (
+          filteredSessions.map((session) => (
+            <Card
+              key={session.id}
+              style={[
+                styles.sessionCard,
+                session.status === 'completed' && styles.completedSessionCard,
+              ]}
+            >
               <Card.Content>
                 <Text style={styles.sessionTitle}>With {session.tutorName || 'Unknown tutor'}</Text>
                 <Text>Subject: {session.subject || 'No subject specified'}</Text>
@@ -124,23 +159,22 @@ const StudentCalendar = () => {
                 <Text>Duration: {session.duration} hour(s)</Text>
                 <Text>Price: {session.price} JD</Text>
                 <Text>Status: {session.status || 'unknown'}</Text>
-                
-                {session.status !== 'completed' && (
-                  <Button 
-                    title="Cancel Session" 
-                    onPress={() => handleCancelSession(session.id)} 
+
+                {session.status !== 'completed' ? (
+                  <Button
+                    title="Cancel Session"
+                    onPress={() => handleCancelSession(session.id)}
                     color="#FF3B30"
                     disabled={saving}
                   />
-                )}
-                {session.status === 'completed' && (
+                ) : (
                   <Text style={styles.completedText}>This session is completed</Text>
                 )}
               </Card.Content>
             </Card>
           ))
         ) : (
-          <Text style={styles.noSessionsText}>No sessions found.</Text>
+          <Text style={styles.noSessionsText}>No sessions on this day.</Text>
         )}
       </View>
     </ScrollView>
@@ -164,6 +198,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 20,
+    textAlign: 'center',
+  },
+  calendar: {
+    marginBottom: 20,
+    borderRadius: 10,
+    elevation: 2,
   },
   sessionCard: {
     marginBottom: 15,
