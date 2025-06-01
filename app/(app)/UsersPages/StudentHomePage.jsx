@@ -87,13 +87,10 @@ const StudentHomePage = ({ navigation }) => {
       userId: user.uid,
       userName: user.displayName || user.email || 'Anonymous',
     };
-    
+
     await updateDoc(tutorRef, {
       reviews: arrayUnion(review),
     });
-    // await updateDoc(tutorRef, {
-    //   reviews: arrayUnion(review),
-    // });
 
     setSelectedTutor((prev) => ({
       ...prev,
