@@ -1,12 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
+} from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
 import { fetchTutors } from './SharedHomeUtils';
-import { doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDoc } from 'firebase/firestore';
+import {
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  writeBatch,
+  getDoc,
+  setDoc,
+  Timestamp,
+  getDocs,
+  collection,
+} from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getRoomId } from '../../../assets/data/data';
 
 const StudentHomePage = ({ navigation }) => {
   const { logout } = useAuth();
@@ -23,23 +45,26 @@ const StudentHomePage = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-const onRefresh = async () => {
-  setRefreshing(true);
-  try {
-    const tutorsData = await fetchTutors();
-    setAllTutors(tutorsData);
-    setFilteredTutors(tutorsData);
-  } catch (error) {
-    console.error('Error refreshing tutors:', error);
-    Alert.alert('Error', 'Failed to refresh tutors');
-  } finally {
-    setRefreshing(false);
-  }
-};
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const tutorsData = await fetchTutors();
+      setAllTutors(tutorsData);
+      setFilteredTutors(tutorsData);
+    } catch (error) {
+      console.error('Error refreshing tutors:', error);
+      Alert.alert('Error', 'Failed to refresh tutors');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const submitReview = async () => {
     if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
-      Alert.alert('Missing fields', 'Please choose a rating and write a review.');
+      Alert.alert(
+        'Missing fields',
+        'Please choose a rating and write a review.',
+      );
       return;
     }
     try {
@@ -55,7 +80,7 @@ const onRefresh = async () => {
         reviews: arrayUnion(review),
       });
 
-      setSelectedTutor(prev => ({
+      setSelectedTutor((prev) => ({
         ...prev,
         reviews: [...(prev.reviews || []), review],
       }));
@@ -91,7 +116,7 @@ const onRefresh = async () => {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.uid) return;
-      
+
       try {
         setTutorsLoading(true);
         const tutorsData = await fetchTutors();
@@ -111,7 +136,7 @@ const onRefresh = async () => {
   const handleBookSession = async (tutorId, sessionId) => {
     try {
       setLoading(true);
-      
+
       const currentUser = auth.currentUser;
       if (!currentUser) {
         throw new Error('You must be logged in to book a session');
@@ -119,29 +144,29 @@ const onRefresh = async () => {
 
       const tutorRef = doc(db, 'users', tutorId);
       const studentRef = doc(db, 'users', currentUser.uid);
-      
+
       const [tutorDoc, studentDoc] = await Promise.all([
         getDoc(tutorRef),
-        getDoc(studentRef)
+        getDoc(studentRef),
       ]);
 
       if (!tutorDoc.exists()) throw new Error('Tutor not found');
-      
+
       const tutorData = tutorDoc.data();
-      const sessionToBook = tutorData.sessions?.find(s => s.id === sessionId);
+      const sessionToBook = tutorData.sessions?.find((s) => s.id === sessionId);
       if (!sessionToBook) throw new Error('Session not found');
 
       const studentData = studentDoc.data() || {};
-      if (studentData.bookedSessions?.some(s => s.id === sessionId)) {
+      if (studentData.bookedSessions?.some((s) => s.id === sessionId)) {
         throw new Error('You have already booked this session');
       }
 
       const batch = writeBatch(db);
-      
+
       batch.update(tutorRef, {
-        sessions: arrayRemove(sessionToBook)
+        sessions: arrayRemove(sessionToBook),
       });
-      
+
       const bookedSession = {
         ...sessionToBook,
         tutorId,
@@ -149,20 +174,20 @@ const onRefresh = async () => {
         studentId: currentUser.uid,
         studentName: currentUser.displayName || 'Student',
         status: 'booked',
-        bookedAt: new Date().toISOString()
+        bookedAt: new Date().toISOString(),
       };
-      
+
       batch.update(studentRef, {
-        bookedSessions: arrayUnion(bookedSession)
+        bookedSessions: arrayUnion(bookedSession),
       });
 
       await batch.commit();
-      
-      setSelectedTutor(prev => ({
+
+      setSelectedTutor((prev) => ({
         ...prev,
-        sessions: prev.sessions.filter(s => s.id !== sessionId)
+        sessions: prev.sessions.filter((s) => s.id !== sessionId),
       }));
-      
+
       Alert.alert('Success', 'Session booked successfully!');
     } catch (error) {
       console.error('Error booking session:', error);
@@ -170,11 +195,42 @@ const onRefresh = async () => {
     } finally {
       setLoading(false);
     }
+
+    // Room creation logic should be outside the above try/catch
+    try {
+      const roomid = getRoomId(user.uid, tutorId);
+      const querySnapshot = await getDocs(collection(db, 'rooms'));
+
+      let roomExists = false;
+
+      querySnapshot.forEach((doc) => {
+        if (doc.id === roomid) {
+          roomExists = true;
+          // You can break out here if you use a for...of loop instead of forEach
+        }
+      });
+
+      if (roomExists) {
+        // Do nothing (or just return)
+        console.log('Room already exists, doing nothing.');
+        return;
+      } else {
+        // Room doesn't exist, do something here
+        console.log("Room doesn't exist, you can create it.");
+        await setDoc(doc(db, 'rooms', roomid), {
+          roomid,
+          time: Timestamp.fromDate(new Date()),
+        });
+      }
+    } catch (error) {
+      console.error('Error creating room:', error);
+      Alert.alert('Error', error.message || 'Failed to create room');
+    }
   };
 
   const renderTutorProfile = () => {
     if (!selectedTutor) return null;
-  
+
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
@@ -182,22 +238,33 @@ const onRefresh = async () => {
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
-        
+
         <Text style={styles.subHeader}>Report</Text>
         <TouchableOpacity
           style={styles.reportButton}
-          onPress={() => Alert.alert('Report Submitted', 'Thank you for your feedback.')}
+          onPress={() =>
+            Alert.alert('Report Submitted', 'Thank you for your feedback.')
+          }
         >
           <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
         </TouchableOpacity>
 
         <Text style={styles.subHeader}>Leave a Review</Text>
         <View style={styles.starsContainer}>
-          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Your Rating</Text>
+          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+            Your Rating
+          </Text>
           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
-                <Text style={reviewRating >= star ? styles.filledStar : styles.emptyStar}>
+              <TouchableOpacity
+                key={star}
+                onPress={() => setReviewRating(star)}
+              >
+                <Text
+                  style={
+                    reviewRating >= star ? styles.filledStar : styles.emptyStar
+                  }
+                >
                   ★
                 </Text>
               </TouchableOpacity>
@@ -212,8 +279,8 @@ const onRefresh = async () => {
           value={reviewText}
           onChangeText={setReviewText}
         />
-        <Button 
-          mode="contained" 
+        <Button
+          mode="contained"
           onPress={submitReview}
           disabled={submittingReview}
           style={{ marginVertical: 10 }}
@@ -221,7 +288,9 @@ const onRefresh = async () => {
           {submittingReview ? 'Submitting...' : 'Submit Review'}
         </Button>
 
-        <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>Reviews</Text>
+        <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>
+          Reviews
+        </Text>
         {selectedTutor.reviews?.length > 0 ? (
           selectedTutor.reviews.map((review, index) => (
             <View key={index} style={styles.reviewItem}>
@@ -232,12 +301,13 @@ const onRefresh = async () => {
         ) : (
           <Text>No reviews yet.</Text>
         )}
-        
+
         <Text style={styles.subHeader}>Available Sessions:</Text>
-        
-        {selectedTutor.sessions?.filter(s => s.status === 'available').length > 0 ? (
+
+        {selectedTutor.sessions?.filter((s) => s.status === 'available')
+          .length > 0 ? (
           selectedTutor.sessions
-            .filter(session => session.status === 'available')
+            .filter((session) => session.status === 'available')
             .map((session) => (
               <Card key={session.id} style={styles.sessionCard}>
                 <Card.Content>
@@ -248,9 +318,11 @@ const onRefresh = async () => {
                   <Text>Price: {session.price} JD</Text>
                 </Card.Content>
                 <Card.Actions>
-                  <Button 
-                    mode="contained" 
-                    onPress={() => handleBookSession(selectedTutor.id, session.id)}
+                  <Button
+                    mode="contained"
+                    onPress={() =>
+                      handleBookSession(selectedTutor.id, session.id)
+                    }
                     loading={loading}
                     disabled={loading}
                   >
@@ -262,10 +334,10 @@ const onRefresh = async () => {
         ) : (
           <Text>No available sessions</Text>
         )}
-  
-        <Button 
-          onPress={() => setSelectedTutor(null)} 
-          mode="outlined" 
+
+        <Button
+          onPress={() => setSelectedTutor(null)}
+          mode="outlined"
           style={styles.backButton}
           disabled={loading}
         >
@@ -276,22 +348,24 @@ const onRefresh = async () => {
   };
 
   const getSubjectsFromTutor = (tutor) => {
-    if (!tutor?.grade) return "No subjects listed";
-    
+    if (!tutor?.grade) return 'No subjects listed';
+
     try {
       let grades = tutor.grade;
       if (!Array.isArray(grades)) {
         grades = Object.entries(grades).map(([grade, subjects]) => ({
           grade,
-          subjects: Array.isArray(subjects) ? subjects : []
+          subjects: Array.isArray(subjects) ? subjects : [],
         }));
       }
-      
-      const allSubjects = grades.flatMap(g => g.subjects || []);
-      return allSubjects.length > 0 ? allSubjects.join(', ') : "No subjects listed";
+
+      const allSubjects = grades.flatMap((g) => g.subjects || []);
+      return allSubjects.length > 0
+        ? allSubjects.join(', ')
+        : 'No subjects listed';
     } catch (error) {
-      console.error("Error processing subjects:", error);
-      return "Error loading subjects";
+      console.error('Error processing subjects:', error);
+      return 'Error loading subjects';
     }
   };
 
@@ -311,12 +385,11 @@ const onRefresh = async () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-
         <View style={styles.container}>{renderTutorProfile()}</View>
       </ScrollView>
     );
   }
-  
+
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContainer}
@@ -324,30 +397,34 @@ const onRefresh = async () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-
       <View style={styles.container}>
-        <Text style={styles.header}>Welcome {user?.displayName || 'Student'}</Text>
+        <Text style={styles.header}>
+          Welcome {user?.displayName || 'Student'}
+        </Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
-  
-        <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
-  
+
+        <SearchAndFilter
+          tutorsData={allTutors}
+          onResultsFiltered={setFilteredTutors}
+        />
+
         <Text style={styles.subHeader}>Explore Tutors</Text>
-        
+
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
         ) : filteredTutors.length > 0 ? (
           filteredTutors.map((tutor) => (
-            <TouchableOpacity 
-              key={tutor.id} 
+            <TouchableOpacity
+              key={tutor.id}
               onPress={() => setSelectedTutor(tutor)}
               disabled={tutorsLoading}
             >
               <Card style={styles.card}>
-                <Card.Title 
-                  title={tutor.name || 'No name'} 
-                  subtitle={`${tutor.province || 'Location not specified'} `} 
+                <Card.Title
+                  title={tutor.name || 'No name'}
+                  subtitle={`${tutor.province || 'Location not specified'} `}
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(tutor)}</Text>
@@ -367,56 +444,56 @@ const styles = StyleSheet.create({
   scrollContainer: {
     paddingBottom: 40,
   },
-  container: { 
-    padding: 20, 
-    flex: 1 
+  container: {
+    padding: 20,
+    flex: 1,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  header: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 10 
-  },
-  subHeader: { 
-    fontSize: 18, 
-    marginTop: 20, 
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
     marginBottom: 10,
-    fontWeight: '600'
   },
-  card: { 
-    marginBottom: 10, 
-    padding: 10 
-  },
-  section: { 
-    marginTop: 20 
-  },
-  logoutButton: { 
-    marginBottom: 20 
-  },
-  backButton: { 
-    marginTop: 20 
-  },
-  title: { 
-    fontSize: 22, 
+  subHeader: {
+    fontSize: 18,
+    marginTop: 20,
     marginBottom: 10,
-    fontWeight: 'bold'
+    fontWeight: '600',
+  },
+  card: {
+    marginBottom: 10,
+    padding: 10,
+  },
+  section: {
+    marginTop: 20,
+  },
+  logoutButton: {
+    marginBottom: 20,
+  },
+  backButton: {
+    marginTop: 20,
+  },
+  title: {
+    fontSize: 22,
+    marginBottom: 10,
+    fontWeight: 'bold',
   },
   sessionCard: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: '#f9f9f9'
+    backgroundColor: '#f9f9f9',
   },
   sessionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5
+    marginBottom: 5,
   },
   loader: {
-    marginVertical: 20
+    marginVertical: 20,
   },
   reportButton: {
     backgroundColor: '#ff4d4d',

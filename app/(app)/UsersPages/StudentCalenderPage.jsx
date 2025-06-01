@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,15 @@ import {
 import { Card } from 'react-native-paper';
 import { Calendar } from 'react-native-calendars';
 import { auth, db } from '../../../firebaseConfig';
-import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  arrayRemove,
+  deleteDoc,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getRoomId } from '../../../assets/data/data';
 
 const StudentCalendar = () => {
   const [upcomingSessions, setUpcomingSessions] = useState([]);
@@ -21,7 +28,9 @@ const StudentCalendar = () => {
   const [user, setUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -68,6 +77,26 @@ const StudentCalendar = () => {
     fetchUpcomingSessions();
   };
 
+  // Use useMemo to derive the session details array from upcomingSessions
+  const sessionDetailsArray = useMemo(
+    () =>
+      upcomingSessions.map((s) => ({
+        date: s.date,
+        time: s.time,
+        student: s.studentName || s.student || 'Unknown student',
+        tutor: s.tutorName || s.tutor || 'Unknown tutor',
+        tutorId: s.tutorId, // Make sure this exists in your session object
+        studentId: s.studentId, // Make sure this exists in your session object
+        subject: s.subject,
+        status: s.status,
+        price: s.price,
+        duration: s.duration,
+        id: s.id,
+      })),
+    [upcomingSessions],
+  );
+  console.log('Session Details Array:', sessionDetailsArray);
+
   const handleCancelSession = async (sessionId) => {
     try {
       setSaving(true);
@@ -75,6 +104,36 @@ const StudentCalendar = () => {
 
       const sessionToRemove = upcomingSessions.find((s) => s.id === sessionId);
       if (!sessionToRemove) throw new Error('Session not found');
+
+      // Find the tutor name and id for the session to remove
+      const tutorName =
+        sessionToRemove.tutorName || sessionToRemove.tutor || 'Unknown tutor';
+      const tutorId = sessionToRemove.tutorId;
+      const studentId = user.uid;
+
+      // Count how many sessions exist with this tutor
+      const sessionsWithSameTutor = sessionDetailsArray.filter(
+        (s) => s.tutor === tutorName,
+      );
+
+      if (sessionsWithSameTutor.length > 1) {
+        console.log('nothing to do');
+      } else if (sessionsWithSameTutor.length === 1) {
+        console.log('something to do');
+        // Only one session left with this tutor, so delete the room
+        if (tutorId && studentId) {
+          const roomId = getRoomId(studentId, tutorId);
+          try {
+            // Delete the room document from Firestore
+            await deleteDoc(doc(db, 'rooms', roomId));
+            console.log('Room deleted:', roomId);
+          } catch (err) {
+            console.error('Error deleting room:', err);
+          }
+        } else {
+          console.log('Missing tutorId or studentId, cannot delete room');
+        }
+      }
 
       if (sessionToRemove.status === 'completed') {
         Alert.alert('Error', 'Cannot cancel a completed session');
@@ -111,7 +170,9 @@ const StudentCalendar = () => {
     return marked;
   };
 
-  const filteredSessions = upcomingSessions.filter((session) => session.date === selectedDate);
+  const filteredSessions = upcomingSessions.filter(
+    (session) => session.date === selectedDate,
+  );
 
   if (loading && !refreshing) {
     return (
@@ -124,7 +185,9 @@ const StudentCalendar = () => {
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContainer}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       <View style={styles.container}>
         <Text style={styles.header}>Your Sessions</Text>
@@ -153,9 +216,19 @@ const StudentCalendar = () => {
               ]}
             >
               <Card.Content>
-                <Text style={styles.sessionTitle}>With {session.tutorName || 'Unknown tutor'}</Text>
-                <Text>Subject: {session.subject || 'No subject specified'}</Text>
-                <Text>When: {session.date} at {session.time}</Text>
+                <Text style={styles.sessionTitle}>
+                  With {session.tutorName || session.tutor || 'Unknown tutor'}
+                </Text>
+                <Text>
+                  Student:{' '}
+                  {session.studentName || session.student || 'Unknown student'}
+                </Text>
+                <Text>
+                  Subject: {session.subject || 'No subject specified'}
+                </Text>
+                <Text>
+                  When: {session.date} at {session.time}
+                </Text>
                 <Text>Duration: {session.duration} hour(s)</Text>
                 <Text>Price: {session.price} JD</Text>
                 <Text>Status: {session.status || 'unknown'}</Text>
@@ -168,7 +241,9 @@ const StudentCalendar = () => {
                     disabled={saving}
                   />
                 ) : (
-                  <Text style={styles.completedText}>This session is completed</Text>
+                  <Text style={styles.completedText}>
+                    This session is completed
+                  </Text>
                 )}
               </Card.Content>
             </Card>

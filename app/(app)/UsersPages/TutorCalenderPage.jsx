@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   RefreshControl,
   Button,
   TextInput,
-  Platform
+  Platform,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Picker } from '@react-native-picker/picker';
@@ -18,9 +18,10 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../../context/authContext';
 import { fetchTutorSessions } from './SharedHomeUtils';
 import { db } from '../../../firebaseConfig';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { getRoomId } from '../../../assets/data/data';
 
-const TutorCalendar = () => { 
+const TutorCalendar = () => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
@@ -37,12 +38,20 @@ const TutorCalendar = () => {
     time: '',
     duration: 1,
     price: 10,
-    status: 'available'
+    status: 'available',
   });
 
   const availableSubjects = [
-    'Arabic', 'Math', 'Physics', 'Chemistry', 'Biology',
-    'History', 'Geography', 'Islamic Studies', 'English', 'Economics',
+    'Arabic',
+    'Math',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'History',
+    'Geography',
+    'Islamic Studies',
+    'English',
+    'Economics',
   ];
 
   const loadSessions = async () => {
@@ -89,13 +98,13 @@ const TutorCalendar = () => {
   const parseTimeToDate = (timeString, referenceDate) => {
     const [timePart, period] = timeString.split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
-    
+
     if (period === 'PM' && hours !== 12) {
       hours += 12;
     } else if (period === 'AM' && hours === 12) {
       hours = 0;
     }
-    
+
     const date = new Date(referenceDate);
     date.setHours(hours, minutes, 0, 0);
     return date;
@@ -105,7 +114,7 @@ const TutorCalendar = () => {
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedTime) {
       const formattedTime = formatTime(selectedTime);
-      setNewSession({...newSession, time: formattedTime});
+      setNewSession({ ...newSession, time: formattedTime });
     }
   };
 
@@ -113,18 +122,23 @@ const TutorCalendar = () => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       const formattedDate = formatDate(selectedDate);
-      setNewSession({...newSession, date: formattedDate});
+      setNewSession({ ...newSession, date: formattedDate });
     }
   };
 
   const checkForOverlaps = (newSessionStart, newSessionEnd) => {
-    return sessions.some(session => {
+    return sessions.some((session) => {
       if (session.status === 'completed') return false;
-      
+
       const [year, month, day] = session.date.split('-').map(Number);
-      const sessionStart = parseTimeToDate(session.time, new Date(year, month - 1, day));
-      const sessionEnd = new Date(sessionStart.getTime() + session.duration * 60 * 60 * 1000);
-      
+      const sessionStart = parseTimeToDate(
+        session.time,
+        new Date(year, month - 1, day),
+      );
+      const sessionEnd = new Date(
+        sessionStart.getTime() + session.duration * 60 * 60 * 1000,
+      );
+
       return (
         (newSessionStart >= sessionStart && newSessionStart < sessionEnd) ||
         (newSessionEnd > sessionStart && newSessionEnd <= sessionEnd) ||
@@ -137,23 +151,29 @@ const TutorCalendar = () => {
     if (!newSession.subject) return 'Please select a subject';
     if (!newSession.date) return 'Please select a date';
     if (!newSession.time) return 'Please select a time';
-    if (newSession.duration < 0.5 || newSession.duration > 8) return 'Duration must be between 0.5 and 8 hours';
+    if (newSession.duration < 0.5 || newSession.duration > 8)
+      return 'Duration must be between 0.5 and 8 hours';
     if (newSession.price < 0) return 'Price cannot be negative';
     if (newSession.price > 1000) return 'Price is too high';
-    
+
     const [year, month, day] = newSession.date.split('-').map(Number);
-    const sessionStart = parseTimeToDate(newSession.time, new Date(year, month - 1, day));
-    const sessionEnd = new Date(sessionStart.getTime() + newSession.duration * 60 * 60 * 1000);
+    const sessionStart = parseTimeToDate(
+      newSession.time,
+      new Date(year, month - 1, day),
+    );
+    const sessionEnd = new Date(
+      sessionStart.getTime() + newSession.duration * 60 * 60 * 1000,
+    );
     const now = new Date();
-    
+
     if (sessionStart <= now) {
       return 'Session time must be in the future';
     }
-    
+
     if (checkForOverlaps(sessionStart, sessionEnd)) {
       return 'This session overlaps with an existing session';
     }
-    
+
     return null;
   };
 
@@ -170,22 +190,22 @@ const TutorCalendar = () => {
       const sessionToAdd = {
         id: sessionId,
         ...newSession,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       const tutorRef = doc(db, 'users', user.userID);
       await updateDoc(tutorRef, {
-        sessions: arrayUnion(sessionToAdd)
+        sessions: arrayUnion(sessionToAdd),
       });
 
-      setSessions(prev => [...prev, sessionToAdd]);
+      setSessions((prev) => [...prev, sessionToAdd]);
       setNewSession({
         subject: '',
         date: '',
         time: '',
         duration: 1,
         price: 10,
-        status: 'available'
+        status: 'available',
       });
       setShowAddSessionUI(false);
       Alert.alert('Success', 'Session added successfully!');
@@ -197,50 +217,131 @@ const TutorCalendar = () => {
     }
   };
 
+  // Memoized array of session details for logic
+  const sessionDetailsArray = useMemo(
+    () =>
+      sessions.map((s) => ({
+        date: s.date,
+        time: s.time,
+        student: s.studentName || s.student || 'Unknown student',
+        studentId: s.studentId,
+        tutor: user?.displayName || user?.name || 'Unknown tutor',
+        tutorId: user?.userID,
+        subject: s.subject,
+        status: s.status,
+        price: s.price,
+        duration: s.duration,
+        id: s.id,
+      })),
+    [sessions, user]
+  );
+
   const handleComplete = async (session) => {
+    // Find the studentId for this session
+    const studentId = session.studentId;
+    const tutorId = user.userID;
+
+    // Count how many sessions exist with this student
+    const sessionsWithSameStudent = sessionDetailsArray.filter(
+      (s) => s.studentId === studentId
+    );
+
+    if (sessionsWithSameStudent.length > 1) {
+      console.log('nothing to do');
+    } else if (sessionsWithSameStudent.length === 1) {
+      console.log('something to do');
+      // Only one session left with this student, so delete the room
+      if (studentId && tutorId) {
+        const roomId = getRoomId(studentId, tutorId);
+        try {
+          await deleteDoc(doc(db, 'rooms', roomId));
+          console.log('Room deleted:', roomId);
+        } catch (err) {
+          console.error('Error deleting room:', err);
+        }
+      } else {
+        console.log('Missing tutorId or studentId, cannot delete room');
+      }
+    }
+
     const tutorRef = doc(db, 'users', user.userID);
-    const updated = { ...session, status: 'completed', completedAt: new Date().toISOString() };
+    const updated = {
+      ...session,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+    };
 
     await updateDoc(tutorRef, {
-      sessions: arrayRemove(session)
+      sessions: arrayRemove(session),
     });
     await updateDoc(tutorRef, {
-      sessions: arrayUnion(updated)
+      sessions: arrayUnion(updated),
     });
 
-    setSessions(prev => prev.map(s => (s.id === session.id ? updated : s)));
+    setSessions((prev) => prev.map((s) => (s.id === session.id ? updated : s)));
   };
 
   const handleCancel = async (session) => {
+    // Find the studentId for this session
+    const studentId = session.studentId;
+    const tutorId = user.userID;
+
+    // Count how many sessions exist with this student
+    const sessionsWithSameStudent = sessionDetailsArray.filter(
+      (s) => s.studentId === studentId
+    );
+
+    if (sessionsWithSameStudent.length > 1) {
+      console.log('nothing to do');
+    } else if (sessionsWithSameStudent.length === 1) {
+      console.log('something to do');
+      // Only one session left with this student, so delete the room
+      if (studentId && tutorId) {
+        const roomId = getRoomId(studentId, tutorId);
+        try {
+          await deleteDoc(doc(db, 'rooms', roomId));
+          console.log('Room deleted:', roomId);
+        } catch (err) {
+          console.error('Error deleting room:', err);
+        }
+      } else {
+        console.log('Missing tutorId or studentId, cannot delete room');
+      }
+    }
+
     const tutorRef = doc(db, 'users', user.userID);
     await updateDoc(tutorRef, {
-      sessions: arrayRemove(session)
+      sessions: arrayRemove(session),
     });
-    setSessions(prev => prev.filter(s => s.id !== session.id));
+    setSessions((prev) => prev.filter((s) => s.id !== session.id));
   };
 
   const markedDates = sessions.reduce((acc, session) => {
     if (session.date) {
       acc[session.date] = {
         marked: true,
-        dotColor: session.status === 'completed' ? 'green' : 'blue'
+        dotColor: session.status === 'completed' ? 'green' : 'blue',
       };
     }
     return acc;
   }, {});
 
-  const sessionsForSelectedDate = sessions.filter(s => s.date === selectedDate);
+  const sessionsForSelectedDate = sessions.filter(
+    (s) => s.date === selectedDate,
+  );
 
   return (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       <View style={styles.container}>
         <Text style={styles.header}>Tutor Calendar</Text>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Manage Sessions</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setShowAddSessionUI(!showAddSessionUI)}
             disabled={saving}
           >
@@ -253,8 +354,8 @@ const TutorCalendar = () => {
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={newSession.subject}
-                onValueChange={(itemValue) => 
-                  setNewSession({...newSession, subject: itemValue})
+                onValueChange={(itemValue) =>
+                  setNewSession({ ...newSession, subject: itemValue })
                 }
                 style={styles.picker}
                 dropdownIconColor="#000"
@@ -267,21 +368,21 @@ const TutorCalendar = () => {
             </View>
 
             <View style={styles.rowInputs}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.input, styles.halfInput, styles.timeInput]}
                 onPress={() => setShowDatePicker(true)}
                 disabled={saving}
               >
-                <Text style={newSession.date ? {} : {color: '#999'}}>
+                <Text style={newSession.date ? {} : { color: '#999' }}>
                   {newSession.date || 'Select Date (YYYY-MM-DD)'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.input, styles.halfInput, styles.timeInput]}
                 onPress={() => setShowTimePicker(true)}
                 disabled={saving}
               >
-                <Text style={newSession.time ? {} : {color: '#999'}}>
+                <Text style={newSession.time ? {} : { color: '#999' }}>
                   {newSession.time || 'Select Time (HH:MM AM/PM)'}
                 </Text>
               </TouchableOpacity>
@@ -310,12 +411,14 @@ const TutorCalendar = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Duration (hours):</Text>
               <View style={styles.numberInputContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.numberInputButton}
-                  onPress={() => setNewSession({
-                    ...newSession,
-                    duration: Math.max(0.5, newSession.duration - 0.5)
-                  })}
+                  onPress={() =>
+                    setNewSession({
+                      ...newSession,
+                      duration: Math.max(0.5, newSession.duration - 0.5),
+                    })
+                  }
                   disabled={newSession.duration <= 0.5 || saving}
                 >
                   <Text style={styles.numberInputButtonText}>-</Text>
@@ -327,37 +430,43 @@ const TutorCalendar = () => {
                     const num = Number(text);
                     if (!isNaN(num)) {
                       setNewSession({
-                        ...newSession, 
-                        duration: Math.max(0.5, Math.min(8, num))
+                        ...newSession,
+                        duration: Math.max(0.5, Math.min(8, num)),
                       });
                     }
                   }}
                   keyboardType="numeric"
                   editable={!saving}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.numberInputButton}
-                  onPress={() => setNewSession({
-                    ...newSession,
-                    duration: Math.min(8, newSession.duration + 0.5)
-                  })}
+                  onPress={() =>
+                    setNewSession({
+                      ...newSession,
+                      duration: Math.min(8, newSession.duration + 0.5),
+                    })
+                  }
                   disabled={newSession.duration >= 8 || saving}
                 >
                   <Text style={styles.numberInputButtonText}>+</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.inputHint}>Must be between 0.5 and 8 hours</Text>
+              <Text style={styles.inputHint}>
+                Must be between 0.5 and 8 hours
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Price (JD):</Text>
               <View style={styles.numberInputContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.numberInputButton}
-                  onPress={() => setNewSession({
-                    ...newSession,
-                    price: Math.max(0, newSession.price - 5)
-                  })}
+                  onPress={() =>
+                    setNewSession({
+                      ...newSession,
+                      price: Math.max(0, newSession.price - 5),
+                    })
+                  }
                   disabled={newSession.price <= 0 || saving}
                 >
                   <Text style={styles.numberInputButtonText}>-</Text>
@@ -369,20 +478,22 @@ const TutorCalendar = () => {
                     const num = Number(text);
                     if (!isNaN(num)) {
                       setNewSession({
-                        ...newSession, 
-                        price: Math.max(0, Math.min(1000, num))
+                        ...newSession,
+                        price: Math.max(0, Math.min(1000, num)),
                       });
                     }
                   }}
                   keyboardType="numeric"
                   editable={!saving}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.numberInputButton}
-                  onPress={() => setNewSession({
-                    ...newSession,
-                    price: Math.min(1000, newSession.price + 5)
-                  })}
+                  onPress={() =>
+                    setNewSession({
+                      ...newSession,
+                      price: Math.min(1000, newSession.price + 5),
+                    })
+                  }
                   disabled={newSession.price >= 1000 || saving}
                 >
                   <Text style={styles.numberInputButtonText}>+</Text>
@@ -391,9 +502,9 @@ const TutorCalendar = () => {
               <Text style={styles.inputHint}>Price per session</Text>
             </View>
 
-            <Button 
-              title="Add Session" 
-              onPress={handleAddSession} 
+            <Button
+              title="Add Session"
+              onPress={handleAddSession}
               disabled={saving}
               color="#3498db"
             />
@@ -403,9 +514,9 @@ const TutorCalendar = () => {
         <Calendar
           markedDates={{
             ...markedDates,
-            [selectedDate]: { selected: true, selectedColor: 'orange' }
+            [selectedDate]: { selected: true, selectedColor: 'orange' },
           }}
-          onDayPress={day => setSelectedDate(day.dateString)}
+          onDayPress={(day) => setSelectedDate(day.dateString)}
         />
 
         {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
@@ -413,14 +524,15 @@ const TutorCalendar = () => {
         {selectedDate && (
           <View style={styles.sessionList}>
             <Text style={styles.dateTitle}>Sessions on {selectedDate}</Text>
-            {sessionsForSelectedDate.length === 0 && (
-              <Text>No sessions.</Text>
-            )}
-            {sessionsForSelectedDate.map(session => (
+            {sessionsForSelectedDate.length === 0 && <Text>No sessions.</Text>}
+            {sessionsForSelectedDate.map((session) => (
               <View key={session.id} style={styles.sessionCard}>
                 <Text>Subject: {session.subject}</Text>
                 <Text>Time: {session.time}</Text>
-                <Text>Duration: {session.duration} hour{session.duration !== 1 ? 's' : ''}</Text>
+                <Text>
+                  Duration: {session.duration} hour
+                  {session.duration !== 1 ? 's' : ''}
+                </Text>
                 <Text>Price: {session.price} JD</Text>
                 <Text>Status: {session.status}</Text>
                 {session.status !== 'completed' && (
@@ -445,53 +557,53 @@ const TutorCalendar = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10
+    marginBottom: 10,
   },
   sectionHeader: {
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
   },
-  sectionTitle: { 
-    fontSize: 18, 
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#2c3e50'
+    color: '#2c3e50',
   },
-  addButton: { 
-    fontSize: 24, 
+  addButton: {
+    fontSize: 24,
     color: '#3498db',
-    paddingHorizontal: 10
+    paddingHorizontal: 10,
   },
-  sessionForm: { 
+  sessionForm: {
     marginBottom: 20,
     backgroundColor: '#f8f9fa',
     padding: 15,
     borderRadius: 10,
-    elevation: 2
+    elevation: 2,
   },
   pickerContainer: {
-    borderWidth: 1, 
-    borderColor: '#E0E0E0', 
-    borderRadius: 8, 
-    marginBottom: 15, 
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 15,
     backgroundColor: '#FAFAFA',
   },
-  picker: { 
-    width: '100%', 
-    height: 50 
+  picker: {
+    width: '100%',
+    height: 50,
   },
   input: {
-    borderWidth: 1, 
-    borderColor: '#E0E0E0', 
-    borderRadius: 8, 
-    padding: 12, 
-    marginBottom: 5, 
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 5,
     backgroundColor: '#FAFAFA',
   },
   inputGroup: {
@@ -509,13 +621,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rowInputs: {
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 15,
   },
-  halfInput: { 
-    flex: 1, 
-    marginRight: 8 
+  halfInput: {
+    flex: 1,
+    marginRight: 8,
   },
   timeInput: {
     justifyContent: 'center',
@@ -545,32 +657,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   sessionList: {
-    marginTop: 20
+    marginTop: 20,
   },
   dateTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10
+    marginBottom: 10,
   },
   sessionCard: {
     padding: 12,
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    marginBottom: 10
+    marginBottom: 10,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10
+    marginTop: 10,
   },
   complete: {
     color: 'green',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   cancel: {
     color: 'red',
-    fontWeight: 'bold'
-  }
+    fontWeight: 'bold',
+  },
 });
 
 export default TutorCalendar;

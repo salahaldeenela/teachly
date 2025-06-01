@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { getDoc, doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -22,40 +22,41 @@ const StudentProfile = ({ user }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const fetchStudent = useCallback(async () => {
-    try {
-      if (!user?.userID) {
-        throw new Error('Invalid user object');
-      }
-
-      const docRef = doc(db, 'users', user.userID);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const studentData = docSnap.data();
-        if (!Array.isArray(studentData.sessionsRegistered)) {
-          studentData.sessionsRegistered = [];
-        }
-        setStudent(studentData);
-      } else {
-        throw new Error('Student profile not found');
-      }
-    } catch (error) {
-      console.error('Error fetching student:', error);
-      Alert.alert('Error', 'Failed to load profile data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user]);
-
   useEffect(() => {
-    fetchStudent();
-  }, [fetchStudent]);
+    if (!user?.userID) return;
+
+    setLoading(true);
+    const docRef = doc(db, 'users', user.userID);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const studentData = docSnap.data();
+          if (!Array.isArray(studentData.sessionsRegistered)) {
+            studentData.sessionsRegistered = [];
+          }
+          setStudent(studentData);
+        } else {
+          setStudent(null);
+        }
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.error('Error fetching student:', error);
+        Alert.alert('Error', 'Failed to load profile data');
+        setLoading(false);
+        setRefreshing(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchStudent();
+    // No manual fetch needed, onSnapshot will update automatically
+    setTimeout(() => setRefreshing(false), 500);
   };
 
   const handleSave = async () => {
