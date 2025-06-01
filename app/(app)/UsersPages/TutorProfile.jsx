@@ -283,7 +283,7 @@ const TutorProfile = ({ user }) => {
         {tutor.reviews?.length > 0 ? (
           tutor.reviews.map((r, index) => (
             <View key={index} style={styles.reviewItem}>
-              <Text style={styles.reviewUser}>{r.userName || 'Anonymous'}:</Text>
+              <Text style={styles.reviewUser}>{r.userName || 'Anonymous'}</Text>
               <Text style={styles.reviewRating}>⭐ {r.rating}/5</Text>
               <Text style={styles.reviewComment}>{r.comment}</Text>
             </View>

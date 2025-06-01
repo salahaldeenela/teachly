@@ -99,6 +99,8 @@ const StudentHomePage = ({ navigation }) => {
 
     setReviewText('');
     setReviewRating('');
+    console.log('Submitting review with user:', user);
+
 
   } catch (error) {
     console.error('Error submitting review:', error);
@@ -388,11 +390,11 @@ const StudentHomePage = ({ navigation }) => {
         {selectedTutor.reviews?.length > 0 ? (
           selectedTutor.reviews.map((review, index) => (
             <View key={index} style={styles.reviewItem}>
+              <Text style={{ fontStyle: 'italic', color: 'gray' }}>
+                 {review.userName || 'Anonymous'}
+              </Text>
               <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
               <Text style={styles.reviewComment}>{review.comment}</Text>
-              <Text style={{ fontStyle: 'italic', color: 'gray' }}>
-                — {review.userName || 'Anonymous'}
-              </Text>
             </View>
           ))
         ) : (
