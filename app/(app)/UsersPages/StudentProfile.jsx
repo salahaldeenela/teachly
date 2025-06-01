@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
   Alert,
-  TouchableOpacity
+  TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
@@ -19,37 +19,44 @@ import { FontAwesome5 } from '@expo/vector-icons';
 const StudentProfile = ({ user }) => {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchStudent = async () => {
-      try {
-        if (!user?.userID) {
-          throw new Error('Invalid user object');
-        }
-
-        const docRef = doc(db, 'users', user.userID);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const studentData = docSnap.data();
-          if (!Array.isArray(studentData.sessionsRegistered)) {
-            studentData.sessionsRegistered = [];
-          }
-          setStudent(studentData);
-        } else {
-          throw new Error('Student profile not found');
-        }
-      } catch (error) {
-        console.error('Error fetching student:', error);
-        Alert.alert('Error', 'Failed to load profile data');
-      } finally {
-        setLoading(false);
+  const fetchStudent = useCallback(async () => {
+    try {
+      if (!user?.userID) {
+        throw new Error('Invalid user object');
       }
-    };
 
-    fetchStudent();
+      const docRef = doc(db, 'users', user.userID);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const studentData = docSnap.data();
+        if (!Array.isArray(studentData.sessionsRegistered)) {
+          studentData.sessionsRegistered = [];
+        }
+        setStudent(studentData);
+      } else {
+        throw new Error('Student profile not found');
+      }
+    } catch (error) {
+      console.error('Error fetching student:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchStudent();
+  }, [fetchStudent]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStudent();
+  };
 
   const handleSave = async () => {
     try {
@@ -87,7 +94,12 @@ const StudentProfile = ({ user }) => {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.profileImage}>
@@ -100,7 +112,6 @@ const StudentProfile = ({ user }) => {
         <Text style={styles.title}>Student Profile</Text>
       </View>
 
-      {/* General Info */}
       <Text style={styles.label}>Name</Text>
       <TextInput
         style={styles.input}

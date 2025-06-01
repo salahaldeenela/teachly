@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
@@ -20,6 +20,22 @@ const StudentHomePage = ({ navigation }) => {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+const onRefresh = async () => {
+  setRefreshing(true);
+  try {
+    const tutorsData = await fetchTutors();
+    setAllTutors(tutorsData);
+    setFilteredTutors(tutorsData);
+  } catch (error) {
+    console.error('Error refreshing tutors:', error);
+    Alert.alert('Error', 'Failed to refresh tutors');
+  } finally {
+    setRefreshing(false);
+  }
+};
 
   const submitReview = async () => {
     if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
@@ -290,14 +306,26 @@ const StudentHomePage = ({ navigation }) => {
 
   if (selectedTutor) {
     return (
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+
         <View style={styles.container}>{renderTutorProfile()}</View>
       </ScrollView>
     );
   }
   
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContainer}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+
       <View style={styles.container}>
         <Text style={styles.header}>Welcome {user?.displayName || 'Student'}</Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>

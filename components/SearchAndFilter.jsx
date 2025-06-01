@@ -25,7 +25,6 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
-    price: 'none',
     subject: '',
     province: '',
     rating: 0,
@@ -35,7 +34,6 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
 
   const handleClearFilters = () => {
     setFilters({
-      price: 'none',
       subject: '',
       location: '',
       rating: 0,
@@ -94,10 +92,6 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
         matchesGrade
       );
     });
-
-    if (filters.price === 'low') {
-      filtered.sort((a, b) => a.price - b.price);
-    }
 
     onResultsFiltered(filtered);
   };
@@ -205,17 +199,9 @@ const SearchAndFilter = ({ tutorsData, onResultsFiltered }) => {
             ))}
           </View>
 
-          {/* Sorting Buttons */}
           <Button
             mode="outlined"
-            onPress={() => setFilters({ ...filters, price: 'low', rating: 0 })}
-            style={styles.button}
-          >
-            Sort by Lowest Price
-          </Button>
-          <Button
-            mode="outlined"
-            onPress={() => setFilters({ ...filters, rating: 5, price: 'none' })}
+            onPress={() => setFilters({ ...filters, rating: 5 })}
             style={styles.button}
           >
             Sort by Highest Rating

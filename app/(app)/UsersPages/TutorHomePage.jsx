@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator,TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+} from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from '../../../context/authContext';
 import SearchAndFilter from '../../../components/SearchAndFilter';
@@ -15,37 +24,57 @@ const TutorHomePage = () => {
   const [loading, setLoading] = useState(false);
   const [tutorsLoading, setTutorsLoading] = useState(true);
   const [studentsLoading, setStudentsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setTutorsLoading(true);
+      setStudentsLoading(true);
+
+      const tutorsData = await fetchTutors();
+      setAllTutors(tutorsData);
+      setFilteredTutors(tutorsData);
+
+      const enrolledStudents = await fetchEnrolledStudents(user.userID);
+      setStudents(enrolledStudents);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+      setTutorsLoading(false);
+      setStudentsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setTutorsLoading(true);
-        setStudentsLoading(true);
-
-        // Load all tutors data
-        const tutorsData = await fetchTutors();
-        setAllTutors(tutorsData);
-        setFilteredTutors(tutorsData);
-        
-        // Load enrolled students
-        const enrolledStudents = await fetchEnrolledStudents(user.userID);
-        setStudents(enrolledStudents);
-        
-      } catch (error) {
-        console.error('Error loading data:', error);
-        Alert.alert('Error', 'Failed to load data. Please try again.');
-      } finally {
-        setLoading(false);
-        setTutorsLoading(false);
-        setStudentsLoading(false);
-      }
-    };
-
-    if (user) {
-      loadData();
-    }
+    if (user) loadData();
   }, [user]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [user]);
+
+  const getSubjectsFromTutor = (tutor) => {
+    if (!tutor?.grade) return "No subjects listed";
+    try {
+      let grades = tutor.grade;
+      if (!Array.isArray(grades)) {
+        grades = Object.entries(grades).map(([grade, subjects]) => ({
+          grade,
+          subjects: Array.isArray(subjects) ? subjects : [],
+        }));
+      }
+      const allSubjects = grades.flatMap(g => g.subjects || []);
+      return allSubjects.length > 0 ? allSubjects.join(', ') : "No subjects listed";
+    } catch (error) {
+      console.error("Error processing subjects:", error);
+      return "Error loading subjects";
+    }
+  };
 
   const renderTutorProfile = () => {
     if (!selectedTutor) return null;
@@ -53,9 +82,10 @@ const TutorHomePage = () => {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+        <Text>Gender: {selectedTutor.gender || 'Not specified'}</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
-        <Text>Price: {selectedTutor.price || 'Not specified'} JD/hour</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
+        <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
 
         <Text style={styles.subHeader}>Available Sessions:</Text>
         {selectedTutor.sessions?.length > 0 ? (
@@ -72,9 +102,9 @@ const TutorHomePage = () => {
           <Text>No sessions available</Text>
         )}
 
-        <Button 
-          onPress={() => setSelectedTutor(null)} 
-          mode="outlined" 
+        <Button
+          onPress={() => setSelectedTutor(null)}
+          mode="outlined"
           style={styles.backButton}
         >
           Back to Tutors
@@ -90,7 +120,7 @@ const TutorHomePage = () => {
       <View style={styles.section}>
         <Text style={styles.title}>{selectedStudent.name}'s Details</Text>
         <Text>Contact: {selectedStudent.email || selectedStudent.phone || 'No contact info'}</Text>
-        
+
         <Text style={styles.subHeader}>Subjects enrolled with you:</Text>
         {selectedStudent.subjects?.length > 0 ? (
           selectedStudent.subjects.map((subj, index) => (
@@ -108,9 +138,7 @@ const TutorHomePage = () => {
                 <Text style={styles.sessionTitle}>{session.subject || 'No subject'}</Text>
                 <Text>When: {session.time || 'Time not specified'}</Text>
                 {session.date && (
-                  <Text>
-                    Date: {session.date.toLocaleDateString()}
-                  </Text>
+                  <Text>Date: {session.date.toLocaleDateString()}</Text>
                 )}
               </Card.Content>
             </Card>
@@ -119,35 +147,15 @@ const TutorHomePage = () => {
           <Text>No upcoming sessions</Text>
         )}
 
-        <Button 
-          onPress={() => setSelectedStudent(null)} 
-          mode="outlined" 
+        <Button
+          onPress={() => setSelectedStudent(null)}
+          mode="outlined"
           style={styles.backButton}
         >
           Back to Students
         </Button>
       </View>
     );
-  };
-
-  const getSubjectsFromTutor = (tutor) => {
-    if (!tutor?.grade) return "No subjects listed";
-    
-    try {
-      let grades = tutor.grade;
-      if (!Array.isArray(grades)) {
-        grades = Object.entries(grades).map(([grade, subjects]) => ({
-          grade,
-          subjects: Array.isArray(subjects) ? subjects : []
-        }));
-      }
-      
-      const allSubjects = grades.flatMap(g => g.subjects || []);
-      return allSubjects.length > 0 ? allSubjects.join(', ') : "No subjects listed";
-    } catch (error) {
-      console.error("Error processing subjects:", error);
-      return "Error loading subjects";
-    }
   };
 
   if (selectedTutor) {
@@ -157,7 +165,7 @@ const TutorHomePage = () => {
       </ScrollView>
     );
   }
-  
+
   if (selectedStudent) {
     return (
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -165,31 +173,34 @@ const TutorHomePage = () => {
       </ScrollView>
     );
   }
-  
+
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContainer}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={styles.container}>
         <Text style={styles.header}>Welcome {user?.username || 'Tutor'}</Text>
         <Button onPress={logout} mode="contained" style={styles.logoutButton}>
           Logout
         </Button>
-  
+
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
-  
+
         <Text style={styles.subHeader}>Explore Tutors</Text>
         {tutorsLoading ? (
           <ActivityIndicator size="large" style={styles.loader} />
         ) : filteredTutors.length > 0 ? (
           filteredTutors.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               onPress={() => setSelectedTutor(item)}
               disabled={loading}
             >
               <Card style={styles.card}>
-                <Card.Title 
-                  title={item.name || 'No name'} 
-                  subtitle={`${item.province || 'Location not specified'} | ${item.price || '?'} JD/hour`} 
+                <Card.Title
+                  title={item.name || 'No name'}
+                  subtitle={`${item.province || 'Location not specified'} `}
                 />
                 <Card.Content>
                   <Text>Teaches: {getSubjectsFromTutor(item)}</Text>
@@ -200,15 +211,15 @@ const TutorHomePage = () => {
         ) : (
           <Text>No tutors found in your area.</Text>
         )}
-  
+
         <View style={styles.section}>
           <Text style={styles.subHeader}>Your Students:</Text>
           {studentsLoading ? (
             <ActivityIndicator size="small" style={styles.loader} />
           ) : students.length > 0 ? (
             students.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
+              <TouchableOpacity
+                key={item.id}
                 onPress={() => setSelectedStudent(item)}
                 disabled={loading}
               >
@@ -249,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 20,
     marginBottom: 10,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   card: {
     marginBottom: 10,
@@ -267,21 +278,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     marginBottom: 10,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   sessionCard: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: '#f9f9f9'
+    backgroundColor: '#f9f9f9',
   },
   sessionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5
+    marginBottom: 5,
   },
   loader: {
-    marginVertical: 20
-  }
+    marginVertical: 20,
+  },
 });
 
 export default TutorHomePage;

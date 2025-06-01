@@ -9,7 +9,8 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  Platform
+  Platform,
+  RefreshControl
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Card } from 'react-native-paper';
@@ -27,6 +28,7 @@ const TutorCalendar = () => {
   const [showAddSessionUI, setShowAddSessionUI] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); 
 
   const [newSession, setNewSession] = useState({
     subject: '',
@@ -41,24 +43,29 @@ const TutorCalendar = () => {
     'Arabic', 'Math', 'Physics', 'Chemistry', 'Biology',
     'History', 'Geography', 'Islamic Studies', 'English', 'Economics',
   ];
-
-  useEffect(() => {
-    const loadSessions = async () => {
-      try {
-        setLoading(true);
-        if (user) {
-          const sessions = await fetchTutorSessions(user.userID);
-          setUpcomingSessions(sessions);
-        }
-      } catch (error) {
-        console.error('Error loading sessions:', error);
-      } finally {
-        setLoading(false);
+  const loadSessions = async () => {
+    try {
+      setLoading(true);
+      if (user) {
+        const sessions = await fetchTutorSessions(user.userID);
+        setUpcomingSessions(sessions);
       }
-    };
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadSessions();
-  }, [user]);
+useEffect(() => {
+  loadSessions();
+}, [user]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadSessions();
+    setRefreshing(false);
+  };
 
   const formatTime = (date) => {
     let hours = date.getHours();
@@ -131,6 +138,7 @@ const TutorCalendar = () => {
     if (newSession.duration < 0.5 || newSession.duration > 8) return 'Duration must be between 0.5 and 8 hours';
     if (newSession.price < 0) return 'Price cannot be negative';
     if (newSession.price > 1000) return 'Price is too high';
+    
 
     const [year, month, day] = newSession.date.split('-').map(Number);
     const sessionStart = parseTimeToDate(newSession.time, new Date(year, month - 1, day));
@@ -244,7 +252,12 @@ const TutorCalendar = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView 
+      contentContainerStyle={styles.scrollContainer}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.container}>
         <Text style={styles.header}>Your Schedule</Text>
 
