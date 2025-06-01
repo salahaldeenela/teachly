@@ -9,18 +9,22 @@ import {
   Alert,
   TouchableOpacity,
   RefreshControl,
+  Button
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useAuth } from '../../../context/authContext';
+
 
 const StudentProfile = ({ user }) => {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { logout } = useAuth();
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -170,6 +174,13 @@ const StudentProfile = ({ user }) => {
           {saving ? 'Saving...' : 'Save Changes'}
         </Text>
       </TouchableOpacity>
+      <View style={{ marginTop: 20 }}>
+        <Button
+          title="Logout"
+          onPress={logout}
+          color="#FF3B30"
+        />
+      </View>
     </ScrollView>
   );
 };
@@ -266,5 +277,8 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#aaa',
+  },
+  logoutButton: {
+    marginBottom: 20,
   },
 });

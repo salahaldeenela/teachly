@@ -31,7 +31,6 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { getRoomId } from '../../../assets/data/data';
 
 const StudentHomePage = ({ navigation }) => {
-  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [allTutors, setAllTutors] = useState([]);
   const [filteredTutors, setFilteredTutors] = useState([]);
@@ -42,8 +41,12 @@ const StudentHomePage = ({ navigation }) => {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
-
+  const [showReportInput, setShowReportInput] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showReviewInput, setShowReviewInput] = useState(false);
+
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -59,42 +62,55 @@ const StudentHomePage = ({ navigation }) => {
     }
   };
 
+  const formatMembershipDate = (timestamp) => {
+  if (!timestamp) return 'Not available';
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const options = { year: 'numeric', month: 'long' };
+  return `Member since ${date.toLocaleDateString(undefined, options)}`;
+};
+
   const submitReview = async () => {
-    if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
-      Alert.alert(
-        'Missing fields',
-        'Please choose a rating and write a review.',
-      );
-      return;
-    }
-    try {
-      setSubmittingReview(true);
-      const tutorRef = doc(db, 'users', selectedTutor.id);
-      const review = {
-        rating: parseInt(reviewRating),
-        comment: reviewText,
-        createdAt: new Date().toISOString(),
-      };
+  if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
+    Alert.alert('Missing fields', 'Please choose a rating and write a review.');
+    return;
+  }
 
-      await updateDoc(tutorRef, {
-        reviews: arrayUnion(review),
-      });
+  try {
+    setSubmittingReview(true);
 
-      setSelectedTutor((prev) => ({
-        ...prev,
-        reviews: [...(prev.reviews || []), review],
-      }));
+    const tutorRef = doc(db, 'users', selectedTutor.id);
+    const review = {
+      rating: parseInt(reviewRating),
+      comment: reviewText,
+      createdAt: new Date().toISOString(),
+      userId: user.uid,
+      userName: user.displayName || user.email || 'Anonymous',
+    };
+    
+    await updateDoc(tutorRef, {
+      reviews: arrayUnion(review),
+    });
+    // await updateDoc(tutorRef, {
+    //   reviews: arrayUnion(review),
+    // });
 
-      setReviewText('');
-      setReviewRating('');
-      Alert.alert('Review Submitted');
-    } catch (error) {
-      console.error('Error submitting review:', error);
-      Alert.alert('Error', 'Failed to submit review.');
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
+    setSelectedTutor((prev) => ({
+      ...prev,
+      reviews: [...(prev.reviews || []), review],
+    }));
+
+    setReviewText('');
+    setReviewRating('');
+
+  } catch (error) {
+    console.error('Error submitting review:', error);
+    Alert.alert('Error', 'Failed to submit review.');
+  } finally {
+    setSubmittingReview(false);
+  }
+};
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -132,6 +148,37 @@ const StudentHomePage = ({ navigation }) => {
 
     loadData();
   }, [user]);
+
+  const submitReport = async () => {
+  if (!user || !selectedTutor) return;
+
+  if (!reportMessage.trim()) {
+    Alert.alert('Missing message', 'Please write a message before submitting the report.');
+    return;
+  }
+
+  try {
+    setSubmittingReport(true);
+
+    const reportData = {
+      reportedBy: user.uid,
+      reportedTutor: selectedTutor.id,
+      message: reportMessage.trim(),
+      createdAt: Timestamp.fromDate(new Date()),
+    };
+
+    await setDoc(doc(collection(db, 'reports')), reportData);
+
+    setReportMessage('');
+    setShowReportInput(false);
+
+  } catch (error) {
+    console.error('Error submitting report:', error);
+    Alert.alert('Error', 'Failed to submit report.');
+  } finally {
+    setSubmittingReport(false);
+  }
+};
 
   const handleBookSession = async (tutorId, sessionId) => {
     try {
@@ -234,73 +281,14 @@ const StudentHomePage = ({ navigation }) => {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+        <Text style={styles.membershipText}>
+          {formatMembershipDate(selectedTutor.createdAt)}
+        </Text>
         <Text>Gender: {selectedTutor.gender || 'Not specified'}</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
 
-        <Text style={styles.subHeader}>Report</Text>
-        <TouchableOpacity
-          style={styles.reportButton}
-          onPress={() =>
-            Alert.alert('Report Submitted', 'Thank you for your feedback.')
-          }
-        >
-          <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.subHeader}>Leave a Review</Text>
-        <View style={styles.starsContainer}>
-          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
-            Your Rating
-          </Text>
-          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setReviewRating(star)}
-              >
-                <Text
-                  style={
-                    reviewRating >= star ? styles.filledStar : styles.emptyStar
-                  }
-                >
-                  ★
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <TextInput
-          style={[styles.input, { height: 80 }]}
-          placeholder="Write your review here"
-          multiline
-          value={reviewText}
-          onChangeText={setReviewText}
-        />
-        <Button
-          mode="contained"
-          onPress={submitReview}
-          disabled={submittingReview}
-          style={{ marginVertical: 10 }}
-        >
-          {submittingReview ? 'Submitting...' : 'Submit Review'}
-        </Button>
-
-        <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>
-          Reviews
-        </Text>
-        {selectedTutor.reviews?.length > 0 ? (
-          selectedTutor.reviews.map((review, index) => (
-            <View key={index} style={styles.reviewItem}>
-              <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
-              <Text style={styles.reviewComment}>{review.comment}</Text>
-            </View>
-          ))
-        ) : (
-          <Text>No reviews yet.</Text>
-        )}
 
         <Text style={styles.subHeader}>Available Sessions:</Text>
 
@@ -333,6 +321,122 @@ const StudentHomePage = ({ navigation }) => {
             ))
         ) : (
           <Text>No available sessions</Text>
+        )}
+
+        <Text style={styles.subHeader}>Leave a Review</Text>
+
+        {!showReviewInput ? (
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={() => setShowReviewInput(true)}
+          >
+            <Text style={styles.reportButtonText}>✍️ Leave a Review</Text>
+          </TouchableOpacity>
+        ) : (
+            <View style={{ marginTop: 10 }}>
+              <View style={styles.starsContainer}>
+                <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+                  Your Rating
+                </Text>
+                <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setReviewRating(star)}
+                    >
+                      <Text
+                        style={
+                          reviewRating >= star ? styles.filledStar : styles.emptyStar
+                        }
+                      >
+                        ★
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+            <TextInput
+              style={[styles.input, { height: 80, marginTop: 10 }]}
+              placeholder="Write your review..."
+              multiline
+              value={reviewText}
+              onChangeText={setReviewText}
+            />
+
+            <Button
+              mode="contained"
+              onPress={submitReview}
+              disabled={submittingReview}
+              style={{ marginTop: 10 }}
+            >
+              {submittingReview ? 'Submitting...' : 'Submit Review'}
+            </Button>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowReviewInput(false);
+                setReviewText('');
+                setReviewRating(0);
+              }}
+            >
+              <Text style={{ color: 'red', marginTop: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <Text style={{ fontWeight: 'bold', marginTop: 20, marginBottom: 8 }}>
+          Reviews
+        </Text>
+        {selectedTutor.reviews?.length > 0 ? (
+          selectedTutor.reviews.map((review, index) => (
+            <View key={index} style={styles.reviewItem}>
+              <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
+              <Text style={styles.reviewComment}>{review.comment}</Text>
+              <Text style={{ fontStyle: 'italic', color: 'gray' }}>
+                — {review.userName || 'Anonymous'}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text>No reviews yet.</Text>
+        )}
+
+        <Text style={styles.subHeader}>Report</Text>
+
+        {!showReportInput ? (
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={() => setShowReportInput(true)}
+          >
+            <Text style={styles.reportButtonText}>🚩 Report This Tutor</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ marginVertical: 10 }}>
+            <TextInput
+              style={[styles.input, { height: 100 }]}
+              placeholder="Describe the issue here..."
+              multiline
+              value={reportMessage}
+              onChangeText={setReportMessage}
+            />
+            <Button
+              mode="contained"
+              onPress={submitReport}
+              disabled={submittingReport}
+              style={{ marginTop: 8 }}
+            >
+              {submittingReport ? 'Submitting...' : 'Submit Report'}
+            </Button>
+            <TouchableOpacity
+              onPress={() => {
+                setShowReportInput(false);
+                setReportMessage('');
+              }}
+            >
+              <Text style={{ color: 'red', marginTop: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         <Button
@@ -401,9 +505,6 @@ const StudentHomePage = ({ navigation }) => {
         <Text style={styles.header}>
           Welcome {user?.displayName || 'Student'}
         </Text>
-        <Button onPress={logout} mode="contained" style={styles.logoutButton}>
-          Logout
-        </Button>
 
         <SearchAndFilter
           tutorsData={allTutors}
@@ -471,9 +572,6 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 20,
   },
-  logoutButton: {
-    marginBottom: 20,
-  },
   backButton: {
     marginTop: 20,
   },
@@ -509,6 +607,14 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 10,
+    marginVertical: 5,
+    backgroundColor: '#fff',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -538,6 +644,12 @@ const styles = StyleSheet.create({
     color: '#ccc',
     marginHorizontal: 3,
   },
+  membershipText: {
+  fontSize: 12,
+  color: '#888',
+  marginBottom: 8,
+},
+
 });
 
 export default StudentHomePage;

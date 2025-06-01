@@ -16,8 +16,11 @@ import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { provincesData } from '../../../assets/data/data';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useAuth } from '../../../context/authContext';
+
 
 const TutorProfile = ({ user }) => {
+  const { logout } = useAuth();
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -280,6 +283,7 @@ const TutorProfile = ({ user }) => {
         {tutor.reviews?.length > 0 ? (
           tutor.reviews.map((r, index) => (
             <View key={index} style={styles.reviewItem}>
+              <Text style={styles.reviewUser}>{r.userName || 'Anonymous'}:</Text>
               <Text style={styles.reviewRating}>⭐ {r.rating}/5</Text>
               <Text style={styles.reviewComment}>{r.comment}</Text>
             </View>
@@ -289,16 +293,17 @@ const TutorProfile = ({ user }) => {
         )}
       </View>
 
+
       {tutor.reviews?.length > 0 && (
         <View style={styles.averageRatingContainer}>
-          <Text style={styles.averageRatingLabel}>Rating:</Text>
+          <Text style={styles.averageRatingLabel}>Your Rating</Text>
           <View style={styles.starsRow}>
             {Array.from({ length: 5 }, (_, i) => {
               const avgRating =
                 tutor.reviews.reduce((sum, r) => sum + Number(r.rating), 0) /
                 tutor.reviews.length;
               return (
-                <Text key={i} style={styles.star}>
+                <Text key={i} style={i < Math.floor(avgRating) ? styles.filledStar : styles.emptyStar}>
                   {i < Math.floor(avgRating) ? '★' : '☆'}
                 </Text>
               );
@@ -307,12 +312,21 @@ const TutorProfile = ({ user }) => {
         </View>
       )}
 
+
       <Button 
         title={saving ? "Saving..." : "Save All Changes"} 
         onPress={handleSaveProfile} 
         disabled={saving}
         style={styles.saveButton}
       />
+      <View style={{ marginTop: 20 }}>
+        <Button
+          title="Logout"
+          onPress={logout}
+          color="#FF3B30"
+        />
+      </View>
+
     </ScrollView>
   );
 };
@@ -348,10 +362,30 @@ const styles = StyleSheet.create({
   reviewRating: { fontWeight: 'bold' },
   reviewComment: { fontStyle: 'italic' },
   averageRatingContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  averageRatingLabel: { marginRight: 10 },
+  averageRatingLabel: { marginRight: 10,fontSize: 16, fontWeight: 'bold' },
   starsRow: { flexDirection: 'row' },
   star: { fontSize: 20, marginRight: 4 },
-  saveButton: { marginTop: 20 }
+  saveButton: { marginTop: 20 },
+  logoutButton: {
+    marginBottom: 20,
+  },
+  reviewUser: {
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+
+  filledStar: {
+    color: 'gold',
+    fontSize: 40,
+    marginHorizontal: 1,
+  },
+
+  emptyStar: {
+    color: '#ccc',
+    fontSize: 40,
+    marginHorizontal: 1,
+  },
+
 });
 
 export default TutorProfile;

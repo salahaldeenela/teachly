@@ -15,7 +15,7 @@ import SearchAndFilter from '../../../components/SearchAndFilter';
 import { fetchTutors, fetchEnrolledStudents } from './SharedHomeUtils';
 
 const TutorHomePage = () => {
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const [allTutors, setAllTutors] = useState([]);
   const [filteredTutors, setFilteredTutors] = useState([]);
   const [selectedTutor, setSelectedTutor] = useState(null);
@@ -58,6 +58,14 @@ const TutorHomePage = () => {
     setRefreshing(false);
   }, [user]);
 
+  const formatMembershipDate = (timestamp) => {
+  if (!timestamp) return 'Not available';
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const options = { year: 'numeric', month: 'long' };
+  return `Member since ${date.toLocaleDateString(undefined, options)}`;
+};
+
   const getSubjectsFromTutor = (tutor) => {
     if (!tutor?.grade) return "No subjects listed";
     try {
@@ -82,6 +90,9 @@ const TutorHomePage = () => {
     return (
       <View style={styles.section}>
         <Text style={styles.title}>{selectedTutor.name}'s Profile</Text>
+        <Text style={styles.membershipText}>
+          {formatMembershipDate(selectedTutor.createdAt)}
+        </Text>
         <Text>Gender: {selectedTutor.gender || 'Not specified'}</Text>
         <Text>Subjects: {getSubjectsFromTutor(selectedTutor)}</Text>
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
@@ -181,9 +192,6 @@ const TutorHomePage = () => {
     >
       <View style={styles.container}>
         <Text style={styles.header}>Welcome {user?.username || 'Tutor'}</Text>
-        <Button onPress={logout} mode="contained" style={styles.logoutButton}>
-          Logout
-        </Button>
 
         <SearchAndFilter tutorsData={allTutors} onResultsFiltered={setFilteredTutors} />
 
@@ -269,9 +277,7 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 20,
   },
-  logoutButton: {
-    marginBottom: 20,
-  },
+
   backButton: {
     marginTop: 20,
   },
@@ -293,6 +299,11 @@ const styles = StyleSheet.create({
   loader: {
     marginVertical: 20,
   },
+  membershipText: {
+  fontSize: 12,
+  color: '#888',
+  marginBottom: 8,
+},
 });
 
 export default TutorHomePage;
