@@ -77,45 +77,48 @@ const ChatScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={hp(8)}
     >
-      <View className="flex-1 bg-white">
+      <View className="flex-1 bg-gray-50">
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-300">
+        <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back-sharp" size={hp(4)} />
+            <Ionicons name="arrow-back-sharp" size={hp(3.5)} color="#333" />
           </TouchableOpacity>
 
-          <Text className="text-lg font-bold">{name || 'Chat'}</Text>
+          <Text className="text-lg font-bold text-gray-800">
+            {name || 'Chat'}
+          </Text>
 
-          <View className="flex-row space-x-4">
-            <TouchableOpacity>
-              <Ionicons name="call" size={hp(4)} />
+          <View className="flex-row space-x-3">
+            <TouchableOpacity className="p-2 bg-gray-100 rounded-full">
+              <Ionicons name="call" size={hp(3)} color="#007AFF" />
             </TouchableOpacity>
-            <TouchableOpacity>
-              <Ionicons name="videocam" size={hp(4)} />
+            <TouchableOpacity className="p-2 bg-gray-100 rounded-full">
+              <Ionicons name="videocam" size={hp(3)} color="#007AFF" />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Message List */}
-        <View className="flex-1 px-3">
+        <View className="flex-1 px-2 py-2">
           <MessageList messages={messages} currentUser={user} />
         </View>
 
         {/* Message Input */}
         <View style={{ marginBottom: hp(1) }} className="px-3 pt-2">
-          <View className="flex-row items-center justify-between p-2 bg-white border rounded-full border-neutral-600">
+          <View className="flex-row items-center justify-between p-2 bg-white border border-gray-300 rounded-full shadow-sm">
             <TextInput
               ref={inputRef}
               onChangeText={(value) => (textRef.current = value)}
-              className="flex-1 mr-2"
-              style={{ fontSize: hp(2.5) }}
-              placeholder="Enter text here"
+              className="flex-1 mr-2 text-base text-gray-800"
+              style={{ fontSize: hp(2.2) }}
+              placeholder="Type your message..."
+              placeholderTextColor="#888"
             />
             <TouchableOpacity
               onPress={handleSendMessage}
-              className="p-3 rounded-full bg-neutral-300"
+              className="p-3 bg-blue-500 rounded-full"
             >
-              <Feather name="send" size={hp(3)} />
+              <Feather name="send" size={hp(2.5)} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>

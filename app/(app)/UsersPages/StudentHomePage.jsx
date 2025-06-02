@@ -25,6 +25,7 @@ import {
   Timestamp,
   getDocs,
   collection,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -47,7 +48,6 @@ const StudentHomePage = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showReviewInput, setShowReviewInput] = useState(false);
 
-
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -63,53 +63,53 @@ const StudentHomePage = ({ navigation }) => {
   };
 
   const formatMembershipDate = (timestamp) => {
-  if (!timestamp) return 'Not available';
+    if (!timestamp) return 'Not available';
 
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const options = { year: 'numeric', month: 'long' };
-  return `Member since ${date.toLocaleDateString(undefined, options)}`;
-};
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const options = { year: 'numeric', month: 'long' };
+    return `Member since ${date.toLocaleDateString(undefined, options)}`;
+  };
 
   const submitReview = async () => {
-  if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
-    Alert.alert('Missing fields', 'Please choose a rating and write a review.');
-    return;
-  }
+    if (reviewRating < 1 || reviewRating > 5 || !reviewText) {
+      Alert.alert(
+        'Missing fields',
+        'Please choose a rating and write a review.',
+      );
+      return;
+    }
 
-  try {
-    setSubmittingReview(true);
+    try {
+      setSubmittingReview(true);
 
-    const tutorRef = doc(db, 'users', selectedTutor.id);
-    const review = {
-      rating: parseInt(reviewRating),
-      comment: reviewText,
-      createdAt: new Date().toISOString(),
-      userId: user.uid,
-      userName: user.displayName || user.email || 'Anonymous',
-    };
+      const tutorRef = doc(db, 'users', selectedTutor.id);
+      const review = {
+        rating: parseInt(reviewRating),
+        comment: reviewText,
+        createdAt: new Date().toISOString(),
+        userId: user.uid,
+        userName: user.displayName || user.email || 'Anonymous',
+      };
 
-    await updateDoc(tutorRef, {
-      reviews: arrayUnion(review),
-    });
+      await updateDoc(tutorRef, {
+        reviews: arrayUnion(review),
+      });
 
-    setSelectedTutor((prev) => ({
-      ...prev,
-      reviews: [...(prev.reviews || []), review],
-    }));
+      setSelectedTutor((prev) => ({
+        ...prev,
+        reviews: [...(prev.reviews || []), review],
+      }));
 
-    setReviewText('');
-    setReviewRating('');
-    console.log('Submitting review with user:', user);
-
-
-  } catch (error) {
-    console.error('Error submitting review:', error);
-    Alert.alert('Error', 'Failed to submit review.');
-  } finally {
-    setSubmittingReview(false);
-  }
-};
-
+      setReviewText('');
+      setReviewRating('');
+      console.log('Submitting review with user:', user);
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', 'Failed to submit review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -129,55 +129,61 @@ const StudentHomePage = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!user?.uid) return;
+    if (!user?.uid) return;
 
-      try {
-        setTutorsLoading(true);
-        const tutorsData = await fetchTutors();
+    setTutorsLoading(true);
+    const unsubscribe = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const tutorsData = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((doc) => doc.role === 'tutor' || doc.type === 'tutor');
         setAllTutors(tutorsData);
         setFilteredTutors(tutorsData);
-      } catch (error) {
+        setTutorsLoading(false);
+      },
+      (error) => {
         console.error('Error loading tutors:', error);
         Alert.alert('Error', 'Failed to load tutors');
-      } finally {
         setTutorsLoading(false);
-      }
-    };
+      },
+    );
 
-    loadData();
-  }, [user]);
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const submitReport = async () => {
-  if (!user || !selectedTutor) return;
+    if (!user || !selectedTutor) return;
 
-  if (!reportMessage.trim()) {
-    Alert.alert('Missing message', 'Please write a message before submitting the report.');
-    return;
-  }
+    if (!reportMessage.trim()) {
+      Alert.alert(
+        'Missing message',
+        'Please write a message before submitting the report.',
+      );
+      return;
+    }
 
-  try {
-    setSubmittingReport(true);
+    try {
+      setSubmittingReport(true);
 
-    const reportData = {
-      reportedBy: user.uid,
-      reportedTutor: selectedTutor.id,
-      message: reportMessage.trim(),
-      createdAt: Timestamp.fromDate(new Date()),
-    };
+      const reportData = {
+        reportedBy: user.uid,
+        reportedTutor: selectedTutor.id,
+        message: reportMessage.trim(),
+        createdAt: Timestamp.fromDate(new Date()),
+      };
 
-    await setDoc(doc(collection(db, 'reports')), reportData);
+      await setDoc(doc(collection(db, 'reports')), reportData);
 
-    setReportMessage('');
-    setShowReportInput(false);
-
-  } catch (error) {
-    console.error('Error submitting report:', error);
-    Alert.alert('Error', 'Failed to submit report.');
-  } finally {
-    setSubmittingReport(false);
-  }
-};
+      setReportMessage('');
+      setShowReportInput(false);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      Alert.alert('Error', 'Failed to submit report.');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
 
   const handleBookSession = async (tutorId, sessionId) => {
     try {
@@ -288,7 +294,6 @@ const StudentHomePage = ({ navigation }) => {
         <Text>Province: {selectedTutor.province || 'Not specified'}</Text>
         <Text>Experince: {selectedTutor.experince || 'Not specified'}</Text>
 
-
         <Text style={styles.subHeader}>Available Sessions:</Text>
 
         {selectedTutor.sessions?.filter((s) => s.status === 'available')
@@ -332,28 +337,30 @@ const StudentHomePage = ({ navigation }) => {
             <Text style={styles.reportButtonText}>✍️ Leave a Review</Text>
           </TouchableOpacity>
         ) : (
-            <View style={{ marginTop: 10 }}>
-              <View style={styles.starsContainer}>
-                <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
-                  Your Rating
-                </Text>
-                <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity
-                      key={star}
-                      onPress={() => setReviewRating(star)}
+          <View style={{ marginTop: 10 }}>
+            <View style={styles.starsContainer}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+                Your Rating
+              </Text>
+              <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setReviewRating(star)}
+                  >
+                    <Text
+                      style={
+                        reviewRating >= star
+                          ? styles.filledStar
+                          : styles.emptyStar
+                      }
                     >
-                      <Text
-                        style={
-                          reviewRating >= star ? styles.filledStar : styles.emptyStar
-                        }
-                      >
-                        ★
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      ★
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
             <TextInput
               style={[styles.input, { height: 80, marginTop: 10 }]}
@@ -391,7 +398,7 @@ const StudentHomePage = ({ navigation }) => {
           selectedTutor.reviews.map((review, index) => (
             <View key={index} style={styles.reviewItem}>
               <Text style={{ fontStyle: 'italic', color: 'gray' }}>
-                 {review.userName || 'Anonymous'}
+                {review.userName || 'Anonymous'}
               </Text>
               <Text style={styles.reviewRating}>⭐ {review.rating}/5</Text>
               <Text style={styles.reviewComment}>{review.comment}</Text>
@@ -610,14 +617,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 5,
     backgroundColor: '#fff',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
+
     marginBottom: 10,
   },
+
   reviewItem: {
     backgroundColor: '#f0f0f0',
     padding: 10,
@@ -644,11 +647,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
   },
   membershipText: {
-  fontSize: 12,
-  color: '#888',
-  marginBottom: 8,
-},
-
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 8,
+  },
 });
 
 export default StudentHomePage;

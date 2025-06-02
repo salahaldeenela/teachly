@@ -18,7 +18,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../../context/authContext';
 import { fetchTutorSessions } from './SharedHomeUtils';
 import { db } from '../../../firebaseConfig';
-import { doc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import {
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  deleteDoc,
+} from 'firebase/firestore';
 import { getRoomId } from '../../../assets/data/data';
 
 const TutorCalendar = () => {
@@ -233,87 +239,107 @@ const TutorCalendar = () => {
         duration: s.duration,
         id: s.id,
       })),
-    [sessions, user]
+    [sessions, user],
   );
 
+  // Make handleComplete match StudentCalendar logic for room deletion
   const handleComplete = async (session) => {
-    // Find the studentId for this session
-    const studentId = session.studentId;
-    const tutorId = user.userID;
+    try {
+      setSaving(true);
+      const tutorRef = doc(db, 'users', user.userID);
 
-    // Count how many sessions exist with this student
-    const sessionsWithSameStudent = sessionDetailsArray.filter(
-      (s) => s.studentId === studentId
-    );
+      // Find the studentId and tutorId for the session
+      const studentId = session.studentId;
+      const tutorId = user.userID;
 
-    if (sessionsWithSameStudent.length > 1) {
-      console.log('nothing to do');
-    } else if (sessionsWithSameStudent.length === 1) {
-      console.log('something to do');
-      // Only one session left with this student, so delete the room
-      if (studentId && tutorId) {
-        const roomId = getRoomId(studentId, tutorId);
-        try {
-          await deleteDoc(doc(db, 'rooms', roomId));
-          console.log('Room deleted:', roomId);
-        } catch (err) {
-          console.error('Error deleting room:', err);
+      // Count how many sessions exist with this student
+      const sessionsWithSameStudent = sessionDetailsArray.filter(
+        (s) => s.studentId === studentId,
+      );
+
+      if (sessionsWithSameStudent.length > 1) {
+        console.log('nothing to do');
+      } else if (sessionsWithSameStudent.length === 1) {
+        console.log('something to do');
+        // Only one session left with this student, so delete the room
+        if (studentId && tutorId) {
+          const roomId = getRoomId(studentId, tutorId);
+          try {
+            await deleteDoc(doc(db, 'rooms', roomId));
+            console.log('Room deleted:', roomId);
+          } catch (err) {
+            console.error('Error deleting room:', err);
+          }
+        } else {
+          console.log('Missing tutorId or studentId, cannot delete room');
         }
-      } else {
-        console.log('Missing tutorId or studentId, cannot delete room');
       }
+
+      // Mark session as completed
+      const updated = {
+        ...session,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+      };
+
+      await updateDoc(tutorRef, {
+        sessions: arrayRemove(session),
+      });
+      await updateDoc(tutorRef, {
+        sessions: arrayUnion(updated),
+      });
+
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? updated : s)),
+      );
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', 'Failed to complete session');
+    } finally {
+      setSaving(false);
     }
-
-    const tutorRef = doc(db, 'users', user.userID);
-    const updated = {
-      ...session,
-      status: 'completed',
-      completedAt: new Date().toISOString(),
-    };
-
-    await updateDoc(tutorRef, {
-      sessions: arrayRemove(session),
-    });
-    await updateDoc(tutorRef, {
-      sessions: arrayUnion(updated),
-    });
-
-    setSessions((prev) => prev.map((s) => (s.id === session.id ? updated : s)));
   };
 
+  // Make handleCancel match StudentCalendar logic for room deletion
   const handleCancel = async (session) => {
-    // Find the studentId for this session
-    const studentId = session.studentId;
-    const tutorId = user.userID;
+    try {
+      setSaving(true);
+      const tutorRef = doc(db, 'users', user.userID);
 
-    // Count how many sessions exist with this student
-    const sessionsWithSameStudent = sessionDetailsArray.filter(
-      (s) => s.studentId === studentId
-    );
+      const studentId = session.studentId;
+      const tutorId = user.userID;
 
-    if (sessionsWithSameStudent.length > 1) {
-      console.log('nothing to do');
-    } else if (sessionsWithSameStudent.length === 1) {
-      console.log('something to do');
-      // Only one session left with this student, so delete the room
-      if (studentId && tutorId) {
-        const roomId = getRoomId(studentId, tutorId);
-        try {
-          await deleteDoc(doc(db, 'rooms', roomId));
-          console.log('Room deleted:', roomId);
-        } catch (err) {
-          console.error('Error deleting room:', err);
+      const sessionsWithSameStudent = sessionDetailsArray.filter(
+        (s) => s.studentId === studentId,
+      );
+
+      if (sessionsWithSameStudent.length > 1) {
+        console.log('nothing to do');
+      } else if (sessionsWithSameStudent.length === 1) {
+        console.log('something to do');
+        if (studentId && tutorId) {
+          const roomId = getRoomId(studentId, tutorId);
+          try {
+            await deleteDoc(doc(db, 'rooms', roomId));
+            console.log('Room deleted:', roomId);
+          } catch (err) {
+            console.error('Error deleting room:', err);
+          }
+        } else {
+          console.log('Missing tutorId or studentId, cannot delete room');
         }
-      } else {
-        console.log('Missing tutorId or studentId, cannot delete room');
       }
-    }
 
-    const tutorRef = doc(db, 'users', user.userID);
-    await updateDoc(tutorRef, {
-      sessions: arrayRemove(session),
-    });
-    setSessions((prev) => prev.filter((s) => s.id !== session.id));
+      await updateDoc(tutorRef, {
+        sessions: arrayRemove(session),
+      });
+      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+    } catch (error) {
+      console.error('Error cancelling session:', error);
+      Alert.alert('Error', 'Failed to cancel session');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const markedDates = sessions.reduce((acc, session) => {
