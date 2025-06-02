@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { useAuth } from '../../../context/authContext';
@@ -9,10 +9,17 @@ const Messages = () => {
   const { user } = useAuth();
   const [otherUsers, setOtherUsers] = useState([]);
 
-  useEffect(() => {
+  // Ref to store the unsubscribe function for Firestore
+  const unsubscribeRef = useRef(null);
+
+  // Function to set up Firestore listeners
+  const setupListeners = () => {
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+    }
     if (!user?.userID) return;
 
-    const unsubscribe = onSnapshot(
+    unsubscribeRef.current = onSnapshot(
       collection(db, 'rooms'),
       async (snapshot) => {
         const unsubscribes = [];
@@ -38,11 +45,24 @@ const Messages = () => {
           }
         }
 
+        // Clean up user listeners when rooms change
         return () => unsubscribes.forEach((unsub) => unsub());
       },
     );
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    setupListeners();
+
+    // Refresh every 5 seconds
+    const intervalId = setInterval(() => {
+      setupListeners();
+    }, 5000);
+
+    return () => {
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      clearInterval(intervalId);
+    };
   }, [user?.userID]);
 
   return (

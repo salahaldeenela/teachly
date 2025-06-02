@@ -16,7 +16,6 @@ import { Calendar } from 'react-native-calendars';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../../../context/authContext';
-import { fetchTutorSessions } from './SharedHomeUtils';
 import { db } from '../../../firebaseConfig';
 import {
   doc,
@@ -24,6 +23,10 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
 } from 'firebase/firestore';
 import { getRoomId } from '../../../assets/data/data';
 
@@ -60,27 +63,39 @@ const TutorCalendar = () => {
     'Economics',
   ];
 
-  const loadSessions = async () => {
-    try {
-      setLoading(true);
-      if (user) {
-        const sessions = await fetchTutorSessions(user.userID);
-        setSessions(sessions);
-      }
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Listen for bookedSessions for this tutor
   useEffect(() => {
-    loadSessions();
-  }, [user]);
+    if (!user?.userID) return;
+    setLoading(true);
+
+    const q = query(
+      collection(db, 'bookedSessions'),
+      where('tutorId', '==', user.userID),
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const sessions = snapshot.docs.map((doc) => ({
+          docId: doc.id, // Use docId for the Firestore document ID
+          ...doc.data(),
+        }));
+        setSessions(sessions);
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.error('Error fetching booked sessions:', error);
+        setLoading(false);
+        setRefreshing(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user?.userID]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadSessions();
     setRefreshing(false);
   };
 
@@ -242,56 +257,51 @@ const TutorCalendar = () => {
     [sessions, user],
   );
 
-  // Make handleComplete match StudentCalendar logic for room deletion
+  // Complete a session in bookedSessions
   const handleComplete = async (session) => {
     try {
       setSaving(true);
-      const tutorRef = doc(db, 'users', user.userID);
 
-      // Find the studentId and tutorId for the session
-      const studentId = session.studentId;
-      const tutorId = user.userID;
+      // Find the session using the Firestore document ID
+      const sessionToComplete = sessions.find((s) => s.docId === session.docId);
+      if (!sessionToComplete) throw new Error('Session not found');
 
-      // Count how many sessions exist with this student
-      const sessionsWithSameStudent = sessionDetailsArray.filter(
+      // Mark the session as completed in Firestore using its document ID
+      const sessionRef = doc(db, 'bookedSessions', session.docId);
+      await updateDoc(sessionRef, {
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+      });
+
+      // Room deletion logic (if last session with this student)
+      const studentId = sessionToComplete.studentId;
+      const tutorId = sessionToComplete.tutorId;
+      const sessionsWithSameStudent = sessions.filter(
         (s) => s.studentId === studentId,
       );
-
-      if (sessionsWithSameStudent.length > 1) {
-        console.log('nothing to do');
-      } else if (sessionsWithSameStudent.length === 1) {
-        console.log('something to do');
-        // Only one session left with this student, so delete the room
-        if (studentId && tutorId) {
-          const roomId = getRoomId(studentId, tutorId);
-          try {
-            await deleteDoc(doc(db, 'rooms', roomId));
-            console.log('Room deleted:', roomId);
-          } catch (err) {
-            console.error('Error deleting room:', err);
-          }
-        } else {
-          console.log('Missing tutorId or studentId, cannot delete room');
+      if (sessionsWithSameStudent.length === 1 && tutorId && studentId) {
+        const roomId = getRoomId(studentId, tutorId);
+        try {
+          await deleteDoc(doc(db, 'rooms', roomId));
+        } catch (err) {
+          console.error('Error deleting room:', err);
         }
       }
 
-      // Mark session as completed
-      const updated = {
-        ...session,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-      };
-
-      await updateDoc(tutorRef, {
-        sessions: arrayRemove(session),
-      });
-      await updateDoc(tutorRef, {
-        sessions: arrayUnion(updated),
-      });
-
+      // Optionally update local state if needed
       setSessions((prev) =>
-        prev.map((s) => (s.id === session.id ? updated : s)),
+        prev.map((s) =>
+          s.docId === session.docId
+            ? {
+                ...s,
+                status: 'completed',
+                completedAt: new Date().toISOString(),
+              }
+            : s,
+        ),
       );
+
+      Alert.alert('Success', 'Session marked as completed!');
     } catch (error) {
       console.error('Error completing session:', error);
       Alert.alert('Error', 'Failed to complete session');
@@ -300,43 +310,29 @@ const TutorCalendar = () => {
     }
   };
 
-  // Make handleCancel match StudentCalendar logic for room deletion
+  // Cancel a session in bookedSessions
   const handleCancel = async (session) => {
     try {
       setSaving(true);
-      const tutorRef = doc(db, 'users', user.userID);
 
-      const studentId = session.studentId;
-      const tutorId = user.userID;
+      // Find the session using the Firestore document ID
+      const sessionToRemove = sessions.find((s) => s.docId === session.docId);
+      if (!sessionToRemove) throw new Error('Session not found');
 
-      const sessionsWithSameStudent = sessionDetailsArray.filter(
-        (s) => s.studentId === studentId,
-      );
-
-      if (sessionsWithSameStudent.length > 1) {
-        console.log('nothing to do');
-      } else if (sessionsWithSameStudent.length === 1) {
-        console.log('something to do');
-        if (studentId && tutorId) {
-          const roomId = getRoomId(studentId, tutorId);
-          try {
-            await deleteDoc(doc(db, 'rooms', roomId));
-            console.log('Room deleted:', roomId);
-          } catch (err) {
-            console.error('Error deleting room:', err);
-          }
-        } else {
-          console.log('Missing tutorId or studentId, cannot delete room');
-        }
+      if (sessionToRemove.status === 'completed') {
+        Alert.alert('Error', 'Cannot cancel a completed session');
+        setSaving(false);
+        return;
       }
 
-      await updateDoc(tutorRef, {
-        sessions: arrayRemove(session),
-      });
-      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+      // Delete the session from bookedSessions collection using its Firestore doc ID
+      await deleteDoc(doc(db, 'bookedSessions', session.docId));
+
+      setSessions((prev) => prev.filter((s) => s.docId !== session.docId));
+      Alert.alert('Success', 'Session cancelled successfully!');
     } catch (error) {
       console.error('Error cancelling session:', error);
-      Alert.alert('Error', 'Failed to cancel session');
+      Alert.alert('Error', error.message || 'Failed to cancel session');
     } finally {
       setSaving(false);
     }
@@ -552,7 +548,7 @@ const TutorCalendar = () => {
             <Text style={styles.dateTitle}>Sessions on {selectedDate}</Text>
             {sessionsForSelectedDate.length === 0 && <Text>No sessions.</Text>}
             {sessionsForSelectedDate.map((session) => (
-              <View key={session.id} style={styles.sessionCard}>
+              <View key={session.docId} style={styles.sessionCard}>
                 <Text>Subject: {session.subject}</Text>
                 <Text>Time: {session.time}</Text>
                 <Text>
@@ -561,6 +557,7 @@ const TutorCalendar = () => {
                 </Text>
                 <Text>Price: {session.price} JD</Text>
                 <Text>Status: {session.status}</Text>
+
                 {session.status !== 'completed' && (
                   <View style={styles.actions}>
                     <TouchableOpacity onPress={() => handleComplete(session)}>

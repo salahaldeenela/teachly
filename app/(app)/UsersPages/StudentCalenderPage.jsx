@@ -13,11 +13,14 @@ import { Card } from 'react-native-paper';
 import { Calendar } from 'react-native-calendars';
 import { auth, db } from '../../../firebaseConfig';
 import {
-  doc,
-  getDoc,
-  updateDoc,
-  arrayRemove,
+  collection,
+  query,
+  where,
+  onSnapshot,
   deleteDoc,
+  doc,
+  arrayRemove,
+  updateDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getRoomId } from '../../../assets/data/data';
@@ -48,33 +51,39 @@ const StudentCalendar = () => {
     return unsubscribe;
   }, []);
 
-  const fetchUpcomingSessions = useCallback(async () => {
-    if (!user?.uid) return;
-    try {
-      if (!refreshing) setLoading(true);
-      const studentRef = doc(db, 'users', user.uid);
-      const studentDoc = await getDoc(studentRef);
-
-      if (studentDoc.exists()) {
-        const studentData = studentDoc.data();
-        const sessions = studentData.bookedSessions || [];
-        setUpcomingSessions(sessions);
-      }
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, refreshing]);
-
   useEffect(() => {
-    if (user) fetchUpcomingSessions();
-  }, [user, fetchUpcomingSessions]);
+    if (!user?.uid) return;
+
+    setLoading(true);
+    const q = query(
+      collection(db, 'bookedSessions'),
+      where('studentId', '==', user.uid),
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const sessions = snapshot.docs.map((doc) => ({
+          docId: doc.id, // Firestore document ID
+          ...doc.data(),
+        }));
+        setUpcomingSessions(sessions);
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.error('Error fetching booked sessions:', error);
+        setLoading(false);
+        setRefreshing(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchUpcomingSessions();
+    // fetchUpcomingSessions(); // No need to call this, onSnapshot will update the state
   };
 
   // Use useMemo to derive the session details array from upcomingSessions
@@ -97,54 +106,41 @@ const StudentCalendar = () => {
   );
   console.log('Session Details Array:', sessionDetailsArray);
 
-  const handleCancelSession = async (sessionId) => {
+  const handleCancelSession = async (docId) => {
     try {
       setSaving(true);
-      const studentRef = doc(db, 'users', user.uid);
 
-      const sessionToRemove = upcomingSessions.find((s) => s.id === sessionId);
+      // Find the session using the Firestore document ID
+      const sessionToRemove = upcomingSessions.find((s) => s.docId === docId);
       if (!sessionToRemove) throw new Error('Session not found');
 
-      // Find the tutor name and id for the session to remove
-      const tutorName =
-        sessionToRemove.tutorName || sessionToRemove.tutor || 'Unknown tutor';
+      // Room deletion logic (if last session with this tutor)
       const tutorId = sessionToRemove.tutorId;
-      const studentId = user.uid;
-
-      // Count how many sessions exist with this tutor
+      const studentId = sessionToRemove.studentId;
       const sessionsWithSameTutor = sessionDetailsArray.filter(
-        (s) => s.tutor === tutorName,
+        (s) => s.tutorId === tutorId,
       );
 
-      if (sessionsWithSameTutor.length > 1) {
-        console.log('nothing to do');
-      } else if (sessionsWithSameTutor.length === 1) {
-        console.log('something to do');
-        // Only one session left with this tutor, so delete the room
-        if (tutorId && studentId) {
-          const roomId = getRoomId(studentId, tutorId);
-          try {
-            // Delete the room document from Firestore
-            await deleteDoc(doc(db, 'rooms', roomId));
-            console.log('Room deleted:', roomId);
-          } catch (err) {
-            console.error('Error deleting room:', err);
-          }
-        } else {
-          console.log('Missing tutorId or studentId, cannot delete room');
+      if (sessionsWithSameTutor.length === 1 && tutorId && studentId) {
+        const roomId = getRoomId(studentId, tutorId);
+        try {
+          await deleteDoc(doc(db, 'rooms', roomId));
+          console.log('Room deleted:', roomId);
+        } catch (err) {
+          console.error('Error deleting room:', err);
         }
       }
 
       if (sessionToRemove.status === 'completed') {
         Alert.alert('Error', 'Cannot cancel a completed session');
+        setSaving(false);
         return;
       }
 
-      await updateDoc(studentRef, {
-        bookedSessions: arrayRemove(sessionToRemove),
-      });
+      // Delete the session from bookedSessions collection using its Firestore doc ID
+      await deleteDoc(doc(db, 'bookedSessions', docId));
 
-      setUpcomingSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setUpcomingSessions((prev) => prev.filter((s) => s.docId !== docId));
       Alert.alert('Success', 'Session cancelled successfully!');
     } catch (error) {
       console.error('Error cancelling session:', error);
@@ -226,6 +222,7 @@ const StudentCalendar = () => {
                 <Text>
                   Subject: {session.subject || 'No subject specified'}
                 </Text>
+
                 <Text>
                   When: {session.date} at {session.time}
                 </Text>
@@ -236,7 +233,7 @@ const StudentCalendar = () => {
                 {session.status !== 'completed' ? (
                   <Button
                     title="Cancel Session"
-                    onPress={() => handleCancelSession(session.id)}
+                    onPress={() => handleCancelSession(session.docId)}
                     color="#FF3B30"
                     disabled={saving}
                   />

@@ -132,6 +132,7 @@ export const AuthContextProvider = ({ children }) => {
         user,
         signUpInfo,
         setSignUpInfo,
+        name: user?.name, // ✅ fixed
       }}
     >
       {children}

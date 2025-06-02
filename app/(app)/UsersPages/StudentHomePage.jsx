@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   getDocs,
   collection,
   onSnapshot,
+  addDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -47,7 +48,7 @@ const StudentHomePage = ({ navigation }) => {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showReviewInput, setShowReviewInput] = useState(false);
-
+  const { name } = useAuth();
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -203,19 +204,15 @@ const StudentHomePage = ({ navigation }) => {
       ]);
 
       if (!tutorDoc.exists()) throw new Error('Tutor not found');
+      if (!studentDoc.exists()) throw new Error('Student not found');
 
       const tutorData = tutorDoc.data();
+      const studentData = studentDoc.data();
       const sessionToBook = tutorData.sessions?.find((s) => s.id === sessionId);
       if (!sessionToBook) throw new Error('Session not found');
 
-      const studentData = studentDoc.data() || {};
-      if (studentData.bookedSessions?.some((s) => s.id === sessionId)) {
-        throw new Error('You have already booked this session');
-      }
-
-      const batch = writeBatch(db);
-
-      batch.update(tutorRef, {
+      // Remove session from tutor's sessions
+      await updateDoc(tutorRef, {
         sessions: arrayRemove(sessionToBook),
       });
 
@@ -224,16 +221,17 @@ const StudentHomePage = ({ navigation }) => {
         tutorId,
         tutorName: tutorData.displayName || tutorData.name || 'Tutor',
         studentId: currentUser.uid,
-        studentName: currentUser.displayName || 'Student',
+        studentName:
+          studentData.name ||
+          studentData.displayName ||
+          currentUser.displayName ||
+          'Student',
         status: 'booked',
         bookedAt: new Date().toISOString(),
       };
 
-      batch.update(studentRef, {
-        bookedSessions: arrayUnion(bookedSession),
-      });
-
-      await batch.commit();
+      // Store the booked session in its own collection with a random id
+      await addDoc(collection(db, 'bookedSessions'), bookedSession);
 
       setSelectedTutor((prev) => ({
         ...prev,
@@ -258,16 +256,13 @@ const StudentHomePage = ({ navigation }) => {
       querySnapshot.forEach((doc) => {
         if (doc.id === roomid) {
           roomExists = true;
-          // You can break out here if you use a for...of loop instead of forEach
         }
       });
 
       if (roomExists) {
-        // Do nothing (or just return)
         console.log('Room already exists, doing nothing.');
         return;
       } else {
-        // Room doesn't exist, do something here
         console.log("Room doesn't exist, you can create it.");
         await setDoc(doc(db, 'rooms', roomid), {
           roomid,
@@ -478,6 +473,19 @@ const StudentHomePage = ({ navigation }) => {
       return 'Error loading subjects';
     }
   };
+
+  useEffect(() => {
+    // Refresh immediately on mount
+    onRefresh();
+
+    // Set up interval for auto-refresh every 5 seconds
+    const intervalId = setInterval(() => {
+      onRefresh();
+    }, 5000);
+
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   if (!authChecked) {
     return (
