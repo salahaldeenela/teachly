@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
 import { useAuth } from '../../../context/authContext';
 import { db } from '../../../firebaseConfig';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 const AdminHomePage = () => {
@@ -10,7 +10,31 @@ const AdminHomePage = () => {
   const [students, setStudents] = useState([]);
   const [tutors, setTutors] = useState([]);
   const [reportedTutors, setReportedTutors] = useState([]);
+  const [bannedTutors, setBannedTutors] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Ban handler
+  const handleBanTutor = async (tutor) => {
+    try {
+      await addDoc(collection(db, 'banned'), {
+        tutorId: tutor.id,
+        name: tutor.name,
+        email: tutor.email,
+        bannedAt: new Date(),
+      });
+      Alert.alert('Tutor Banned', `${tutor.name} has been banned and added to the banned list.`);
+      fetchBannedTutors(); // Refresh banned list after banning
+    } catch (error) {
+      Alert.alert('Error', 'Failed to ban tutor.');
+    }
+  };
+
+  // Fetch banned tutors
+  const fetchBannedTutors = async () => {
+    const bannedSnapshot = await getDocs(collection(db, 'banned'));
+    const bannedList = bannedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setBannedTutors(bannedList);
+  };
 
   useEffect(() => {
     const fetchUsersAndReports = async () => {
@@ -24,18 +48,52 @@ const AdminHomePage = () => {
 
         // Fetch all reports
         const reportsSnapshot = await getDocs(collection(db, 'reports'));
-        const reportedTutorIds = [
-          ...new Set(reportsSnapshot.docs.map(doc => doc.data().reportedTutor))
-        ];
-        // Find tutor objects that are reported
-        const reportedTutorsList = allUsers.filter(
-          u => u.userType === 'tutor' && reportedTutorIds.includes(u.id)
+        const reports = reportsSnapshot.docs.map(doc => doc.data());
+
+        // Group report messages by tutor ID
+        const reportsByTutor = {};
+        reports.forEach(report => {
+          if (!reportsByTutor[report.reportedTutor]) {
+            reportsByTutor[report.reportedTutor] = [];
+          }
+          if (report.message) {
+            reportsByTutor[report.reportedTutor].push(report.message);
+          }
+        });
+
+        // Create a list of reported tutors with all their messages
+        const reportedTutorsList = Object.keys(reportsByTutor)
+          .map(tutorId => {
+            const tutor = allUsers.find(
+              u => u.userType === 'tutor' && u.id === tutorId
+            );
+            if (tutor) {
+              return {
+                ...tutor,
+                reportMessages: reportsByTutor[tutorId],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        // Fetch banned tutors
+        const bannedSnapshot = await getDocs(collection(db, 'banned'));
+        const bannedList = bannedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setBannedTutors(bannedList);
+
+        // Remove banned tutors from reportedTutorsList
+        const bannedTutorIds = bannedList.map(b => b.tutorId);
+        const filteredReportedTutors = reportedTutorsList.filter(
+          tutor => !bannedTutorIds.includes(tutor.id)
         );
-        setReportedTutors(reportedTutorsList);
+        setReportedTutors(filteredReportedTutors);
+
       } catch (error) {
         setStudents([]);
         setTutors([]);
         setReportedTutors([]);
+        setBannedTutors([]);
       }
       setLoading(false);
     };
@@ -86,7 +144,35 @@ const AdminHomePage = () => {
         ) : (
           reportedTutors.map(item => (
             <View style={styles.userCard} key={item.id}>
-              <Text style={styles.userName}>{item.name} ({item.email})</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.userName}>{item.name} ({item.email})</Text>
+                <View style={{marginTop: 4}}>
+                  {item.reportMessages.map((msg, idx) => (
+                    <Text key={idx} style={{color: 'red', fontSize: 14}}>
+                      Report: {msg}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.banButton}
+                onPress={() => handleBanTutor(item)}
+              >
+                <Text style={styles.banButtonText}>Ban</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
+        <Text style={styles.header}>Banned Tutors</Text>
+        {bannedTutors.length === 0 ? (
+          <Text>No banned tutors found.</Text>
+        ) : (
+          bannedTutors.map(item => (
+            <View style={styles.userCard} key={item.tutorId || item.id}>
+              <Text style={styles.userName}>
+                {item.name} ({item.email})
+              </Text>
             </View>
           ))
         )}
@@ -105,9 +191,28 @@ const styles = StyleSheet.create({
   hello: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
   container: { flex: 1, paddingHorizontal: 16 },
   header: { fontSize: 20, fontWeight: 'bold', marginVertical: 12 },
-  userCard: { padding: 12, borderBottomWidth: 1, borderColor: '#eee' },
+  userCard: { 
+    padding: 12, 
+    borderBottomWidth: 1, 
+    borderColor: '#eee', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between' 
+  },
   userName: { fontSize: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  banButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    marginLeft: 10,
+  },
+  banButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
