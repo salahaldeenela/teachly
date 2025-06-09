@@ -1,8 +1,16 @@
-import { Tabs } from 'expo-router';
+import { Tabs,Stack  } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons'; // Import the icon library
+import {useAuth} from '../../../context/authContext';
+
 
 const _layout = () => {
+  const { user } = useAuth();
+
+if (user?.userType === 'admin') {
+  return <Stack />;
+}
+
   return (
     <Tabs>
       <Tabs.Screen
