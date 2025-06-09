@@ -96,44 +96,47 @@ export const fetchTutorSessions = async (tutorId) => {
   try {
     if (!tutorId) throw new Error('Tutor ID is required');
 
-    // 1. Fetch the tutor document
     const tutorDocRef = doc(db, 'users', tutorId);
     const tutorDocSnap = await getDoc(tutorDocRef);
 
-    let tutorSessions = [];
+    const sessionMap = new Map(); // To track unique sessions
+
+    // 1. Get unbooked sessions from tutor's document
     if (tutorDocSnap.exists()) {
       const tutorData = tutorDocSnap.data();
-      tutorSessions = (tutorData.sessions || []).map(session => ({
-        ...session,
-        tutorId,
-        tutorName: tutorData.name || tutorData.username || 'Unknown Tutor',
-        // If you want, convert dates here too
-        bookedAt: session.bookedAt ? new Date(session.bookedAt) : null,
-        createdAt: session.createdAt ? new Date(session.createdAt) : null,
-        sessionDate: session.date ? new Date(session.date) : null,
-        // Since these are unbooked sessions, student info might not be available
-        studentId: null,
-        studentName: null,
-        studentEmail: null,
-        studentProvince: null,
-      }));
+      const tutorSessions = tutorData.sessions || [];
+
+      tutorSessions.forEach(session => {
+        const sessionKey = `${session.date}_${session.time}_${tutorId}`;
+        sessionMap.set(sessionKey, {
+          ...session,
+          tutorId,
+          tutorName: tutorData.name || tutorData.username || 'Unknown Tutor',
+          bookedAt: session.bookedAt ? new Date(session.bookedAt) : null,
+          createdAt: session.createdAt ? new Date(session.createdAt) : null,
+          sessionDate: session.date ? new Date(session.date) : null,
+          studentId: null,
+          studentName: null,
+          studentEmail: null,
+          studentProvince: null,
+        });
+      });
     }
 
-    // 2. Fetch all students and filter booked sessions by tutorId
+    // 2. Get booked sessions from students
     const studentsSnapshot = await getDocs(
-      query(
-        collection(db, 'users'),
-        where('userType', '==', 'student')
-      )
+      query(collection(db, 'users'), where('userType', '==', 'student'))
     );
 
-    const bookedSessions = studentsSnapshot.docs.flatMap(studentDoc => {
+    studentsSnapshot.docs.forEach(studentDoc => {
       const studentData = studentDoc.data();
       const bookedSessions = studentData.bookedSessions || [];
 
-      return bookedSessions
-        .filter(session => session.tutorId === tutorId)
-        .map(session => ({
+      bookedSessions.forEach(session => {
+        if (session.tutorId !== tutorId) return;
+
+        const sessionKey = `${session.date}_${session.time}_${session.tutorId}`;
+        sessionMap.set(sessionKey, {
           ...session,
           studentId: studentDoc.id,
           studentName: studentData.name || studentData.username,
@@ -144,13 +147,13 @@ export const fetchTutorSessions = async (tutorId) => {
           sessionDate: new Date(session.date),
           tutorName: session.tutorName,
           tutorId: session.tutorId,
-        }));
+        });
+      });
     });
 
-    // 3. Combine both session arrays
-    const allSessions = [...tutorSessions, ...bookedSessions];
+    // 3. Convert map to array and sort
+    const allSessions = Array.from(sessionMap.values());
 
-    // 4. Sort by bookedAt (newest first), putting sessions with no bookedAt at the end
     allSessions.sort((a, b) => {
       if (!a.bookedAt) return 1;
       if (!b.bookedAt) return -1;
@@ -164,6 +167,7 @@ export const fetchTutorSessions = async (tutorId) => {
     throw new Error('Failed to fetch sessions. Please try again later.');
   }
 };
+
 
 
 // For students to see their booked sessions
