@@ -8,6 +8,7 @@ const Home = () => {
   const { user } = useAuth();
 
   if (!user) return null;
+  console.log(user.userType);
 
   if (user.userType === 'student') {
     return <StudentHomePage />;
@@ -17,7 +18,7 @@ const Home = () => {
     return <TutorHomePage />;
   }
 
-    if (user.userType === 'admin') {
+  if (user.userType === 'admin') {
     return <AdminHomePage />;
   }
     

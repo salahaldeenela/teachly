@@ -90,11 +90,36 @@ export const fetchAvailableSessions = async (tutorId = null) => {
 };
 
 // For tutors to see their sessions
+
+
 export const fetchTutorSessions = async (tutorId) => {
   try {
     if (!tutorId) throw new Error('Tutor ID is required');
 
-    // Get all student documents
+    // 1. Fetch the tutor document
+    const tutorDocRef = doc(db, 'users', tutorId);
+    const tutorDocSnap = await getDoc(tutorDocRef);
+
+    let tutorSessions = [];
+    if (tutorDocSnap.exists()) {
+      const tutorData = tutorDocSnap.data();
+      tutorSessions = (tutorData.sessions || []).map(session => ({
+        ...session,
+        tutorId,
+        tutorName: tutorData.name || tutorData.username || 'Unknown Tutor',
+        // If you want, convert dates here too
+        bookedAt: session.bookedAt ? new Date(session.bookedAt) : null,
+        createdAt: session.createdAt ? new Date(session.createdAt) : null,
+        sessionDate: session.date ? new Date(session.date) : null,
+        // Since these are unbooked sessions, student info might not be available
+        studentId: null,
+        studentName: null,
+        studentEmail: null,
+        studentProvince: null,
+      }));
+    }
+
+    // 2. Fetch all students and filter booked sessions by tutorId
     const studentsSnapshot = await getDocs(
       query(
         collection(db, 'users'),
@@ -102,8 +127,7 @@ export const fetchTutorSessions = async (tutorId) => {
       )
     );
 
-    // Process all booked sessions across students
-    const allSessions = studentsSnapshot.docs.flatMap(studentDoc => {
+    const bookedSessions = studentsSnapshot.docs.flatMap(studentDoc => {
       const studentData = studentDoc.data();
       const bookedSessions = studentData.bookedSessions || [];
 
@@ -115,24 +139,32 @@ export const fetchTutorSessions = async (tutorId) => {
           studentName: studentData.name || studentData.username,
           studentEmail: studentData.email,
           studentProvince: studentData.province,
-          // Convert string dates to Date objects
           bookedAt: new Date(session.bookedAt),
           createdAt: new Date(session.createdAt),
           sessionDate: new Date(session.date),
-          // Add tutor information from session
           tutorName: session.tutorName,
-          tutorId: session.tutorId
+          tutorId: session.tutorId,
         }));
     });
 
-    // Sort sessions by booking date (newest first)
-    return allSessions.sort((a, b) => b.bookedAt - a.bookedAt);
+    // 3. Combine both session arrays
+    const allSessions = [...tutorSessions, ...bookedSessions];
+
+    // 4. Sort by bookedAt (newest first), putting sessions with no bookedAt at the end
+    allSessions.sort((a, b) => {
+      if (!a.bookedAt) return 1;
+      if (!b.bookedAt) return -1;
+      return b.bookedAt - a.bookedAt;
+    });
+
+    return allSessions;
 
   } catch (error) {
     console.error('Error fetching tutor sessions:', error);
     throw new Error('Failed to fetch sessions. Please try again later.');
   }
 };
+
 
 // For students to see their booked sessions
 export const fetchStudentSessions = async (studentId) => {
