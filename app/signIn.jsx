@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { Button, TextInput } from 'react-native-paper';
 import CustomKeybaordView from '../components/CustomKeybaordView';
 import { useAuth } from '../context/authContext';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 export default function SignInScreen() {
   const navigation = useRouter();
@@ -12,6 +14,21 @@ export default function SignInScreen() {
   const refPassword = useRef('');
   const { login } = useAuth();
   const [secureText, setSecureText] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const checkIfBanned = async (email) => {
+    try {
+      const bannedQuery = query(
+        collection(db, 'banned'),
+        where('email', '==', email.toLowerCase())
+      );
+      const querySnapshot = await getDocs(bannedQuery);
+      return !querySnapshot.empty; // returns true if user is banned
+    } catch (error) {
+      console.error('Error checking banned status:', error);
+      return false; // if there's an error, assume not banned to not block legitimate users
+    }
+  };
 
   const HandleLoginIn = async () => {
     if (!refEmail.current || !refPassword.current) {
@@ -19,21 +36,42 @@ export default function SignInScreen() {
       return;
     }
 
-    const res = await login(refEmail.current, refPassword.current);
+    setIsLoading(true);
+    
+    try {
+      // First check if user is banned
+      const isBanned = await checkIfBanned(refEmail.current);
+      
+      if (isBanned) {
+        Alert.alert(
+          'Account Banned',
+          'Your account has been banned. Please contact support if you believe this is an error.'
+        );
+        setIsLoading(false);
+        return;
+      }
 
-    // Improved console logging
-    if (res.succsess) {
-      console.log('%cLogin successfuls', 'color: green; font-weight: bold;');
-    } else {
-      console.log('%cLogin failed', 'color: red; font-weight: bold;');
-      if (res.message.includes('(auth/invalid-email)')) {
-        console.log('%cInvalid email address format!', 'color: red;');
-        Alert.alert('Invalid email', 'Please add a valid email');
+      // If not banned, proceed with login
+      const res = await login(refEmail.current, refPassword.current);
+
+      if (res.success) {
+        console.log('%cLogin successful', 'color: green; font-weight: bold;');
+      } else {
+        console.log('%cLogin failed', 'color: red; font-weight: bold;');
+        if (res.message.includes('(auth/invalid-email)')) {
+          console.log('%cInvalid email address format!', 'color: red;');
+          Alert.alert('Invalid email', 'Please add a valid email');
+        }
+        if (res.message.includes('(auth/invalid-credential)')) {
+          console.log('%cInvalid password provided!', 'color: red;');
+          Alert.alert('Invalid password', 'Please enter the correct password');
+        }
       }
-      if (res.message.includes('(auth/invalid-credential)')) {
-        console.log('%cInvalid password provided!', 'color: red;');
-        Alert.alert('Invalid password', 'Please enter the correct password');
-      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'An error occurred during login. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,6 +117,8 @@ export default function SignInScreen() {
             mode="contained"
             onPress={HandleLoginIn}
             contentStyle={{ paddingVertical: 8 }}
+            loading={isLoading}
+            disabled={isLoading}
           >
             Sign In
           </Button>
