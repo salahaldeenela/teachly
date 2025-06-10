@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
 import { useAuth } from '../../../context/authContext';
 import { db } from '../../../firebaseConfig';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 const AdminHomePage = () => {
@@ -12,6 +12,16 @@ const AdminHomePage = () => {
   const [reportedTutors, setReportedTutors] = useState([]);
   const [bannedTutors, setBannedTutors] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleUnbanTutor = async (bannedTutor) => {
+    try {
+      await deleteDoc(doc(db, 'banned', bannedTutor.id));
+      Alert.alert('Tutor Unbanned', `${bannedTutor.name} has been unbanned.`);
+      fetchBannedTutors(); // Refresh banned list after unbanning
+    } catch (error) {
+      Alert.alert('Error', 'Failed to unban tutor.');
+    }
+  };
 
   // Ban handler
   const handleBanTutor = async (tutor) => {
@@ -146,9 +156,9 @@ const AdminHomePage = () => {
             <View style={styles.userCard} key={item.id}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.userName}>{item.name} ({item.email})</Text>
-                <View style={{marginTop: 4}}>
+                <View style={{ marginTop: 4 }}>
                   {item.reportMessages.map((msg, idx) => (
-                    <Text key={idx} style={{color: 'red', fontSize: 14}}>
+                    <Text key={idx} style={{ color: 'red', fontSize: 14 }}>
                       Report: {msg}
                     </Text>
                   ))}
@@ -165,17 +175,19 @@ const AdminHomePage = () => {
         )}
 
         <Text style={styles.header}>Banned Tutors</Text>
-        {bannedTutors.length === 0 ? (
-          <Text>No banned tutors found.</Text>
-        ) : (
-          bannedTutors.map(item => (
-            <View style={styles.userCard} key={item.tutorId || item.id}>
-              <Text style={styles.userName}>
-                {item.name} ({item.email})
-              </Text>
-            </View>
-          ))
-        )}
+        {bannedTutors.map(item => (
+          <View style={styles.userCard} key={item.tutorId || item.id}>
+            <Text style={styles.userName}>
+              {item.name} ({item.email})
+            </Text>
+            <TouchableOpacity
+              style={styles.unbanButton}
+              onPress={() => handleUnbanTutor(item)}
+            >
+              <Text style={styles.unbanButtonText}>Unban</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
       </ScrollView>
       <TouchableOpacity style={styles.logoutButton} onPress={logout}>
         <FontAwesome5 name="sign-out-alt" size={22} color="#fff" style={{ marginRight: 10 }} />
@@ -191,13 +203,13 @@ const styles = StyleSheet.create({
   hello: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
   container: { flex: 1, paddingHorizontal: 16 },
   header: { fontSize: 20, fontWeight: 'bold', marginVertical: 12 },
-  userCard: { 
-    padding: 12, 
-    borderBottomWidth: 1, 
-    borderColor: '#eee', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between' 
+  userCard: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
   },
   userName: { fontSize: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -229,6 +241,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: 1,
   },
+  unbanButton: {
+  backgroundColor: '#4CD964', // Green
+  paddingVertical: 6,
+  paddingHorizontal: 16,
+  borderRadius: 6,
+  marginLeft: 10,
+},
+unbanButtonText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
 });
 
 export default AdminHomePage;
