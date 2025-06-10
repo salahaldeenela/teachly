@@ -25,9 +25,6 @@ import {
   Timestamp,
   getDocs,
   collection,
-  query,
-  where,
-  
 } from 'firebase/firestore';
 import { db, auth } from '../../../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -49,20 +46,6 @@ const StudentHomePage = ({ navigation }) => {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showReviewInput, setShowReviewInput] = useState(false);
-
-  const checkIfBanned = async (email) => {
-    try {
-      const bannedQuery = query(
-        collection(db, 'banned'),
-        where('email', '==', email.toLowerCase())
-      );
-      const querySnapshot = await getDocs(bannedQuery);
-      return !querySnapshot.empty; // returns true if user is banned
-    } catch (error) {
-      console.error('Error checking banned status:', error);
-      return false; // if there's an error, assume not banned to not block legitimate users
-    }
-  };
 
 
   const onRefresh = async () => {
@@ -293,22 +276,6 @@ const StudentHomePage = ({ navigation }) => {
 
   const renderTutorProfile = () => {
     if (!selectedTutor) return null;
-
-
-    if(checkIfBanned(selectedTutor.email)){
-      return(
-        <View style={styles.section}>
-          <Text style={styles.title}>Banned User</Text>
-             <Button
-          onPress={() => setSelectedTutor(null)}
-          mode="outlined"
-          style={styles.backButton}
-          disabled={loading}
-        >
-          Back to Tutors
-        </Button>
-        </View>)
-    }
 
     return (
       <View style={styles.section}>
