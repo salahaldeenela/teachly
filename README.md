@@ -1,79 +1,71 @@
-# React Native + NativeWind Template
+📚 Teachly – Find the Perfect Tutor in Real Time
 
-A minimal but robust template for React Native projects using NativeWind (TailwindCSS), Expo Router, and TypeScript with built-in dark/light theme support.
+Teachly is a modern mobile app that connects students with tutors tailored to their exact needs. Built with React Native, Expo, NativeWind (TailwindCSS), and Firebase, it delivers a seamless real-time experience for discovering, booking, and connecting with tutors anytime, anywhere.
 
-## 🚀 Quick Start
-```sh
-    git clone https://github.com/SalehAhmed10/Expo-ReactNative-NativeWind-Tailwind-Template.git
-```
+🚀 Quick Start
+git clone https://github.com/YOUR-USERNAME/teachly.git
+cd teachly
+npm install
+npx expo start
 
-```
-    cd Expo-ReactNative-NativeWind-Tailwind-Template
-    npm install
-    npx expo start
-```
-## 📦 What's Included
+📦 Tech Stack
 
-- ⚡️ Expo Router for navigation
-- 🎨 NativeWind (TailwindCSS) for styling
-- 🌓 Dark/Light theme with system sync
-- 📱 Responsive design ready
-- 🔍 TypeScript for type safety
+⚡ React Native + Expo → Cross-platform app (Android, iOS, Web)
 
-## 🎨 Theme System
+🎨 NativeWind (TailwindCSS) → Clean, modern, and responsive UI
 
-The template includes a complete theme system with:
+🔥 Firebase → Realtime Database & Authentication for instant connections
 
-- System theme detection
-- Manual theme toggle
-- HSL color system with opacity support
-- Consistent styling across light/dark modes
+🌓 Dark/Light Theme → System sync with manual toggle
 
-## ⚠️ Known Issues & Fixes
+📱 Responsive Design → Optimized for mobile-first learning
 
-### 1. NativeWind Babel Error
-**Fix**: Use NativeWind version 2.0.11
+✨ Features
 
-json
-{
-"dependencies": {
-"nativewind": "^2.0.11"
-}
-}
+🔍 Smart Tutor Matching – Find tutors based on subject, level, and preferences
 
+⏱ Real-Time Availability – Instantly see which tutors are free to help
 
+💬 Realtime Updates – Powered by Firebase for instant session syncing
 
-## 📁 Project Structure
+🎨 Sleek UI – Styled with Tailwind (NativeWind) for a smooth user experience
+
+🌙 Dark/Light Mode – Study in comfort, day or night
+
+📁 Project Structure
+teachly/
 ├── app/
-│ ├── layout.tsx # Root layout with theme provider
-│ ├── index.tsx # Home screen
-│ └── +not-found.tsx # 404 page
+│   ├── layout.tsx        # Root layout with theme provider
+│   ├── index.tsx         # Home screen
+│   └── +not-found.tsx    # 404 page
 ├── components/
-│ └── ThemeToggle.tsx # Theme toggle component
+│   └── ThemeToggle.tsx   # Dark/Light mode toggle
 ├── context/
-│ └── ThemeProvider.tsx # Theme management
-├── babel.config.js
-├── tailwind.config.js # Theme configuration
-└── tsconfig.json
+│   └── ThemeProvider.tsx # Theme state management
+├── tailwind.config.js    # TailwindCSS configuration
+├── babel.config.js       # Babel + NativeWind config
+└── tsconfig.json         # TypeScript configuration
 
-## 🛠 Configuration Files
+🛠 Configuration
 
-### tailwind.config.js
-Contains theme colors and configuration. Modify this file to customize your color scheme.
+tailwind.config.js → Customize colors, spacing, and themes
 
-### babel.config.js
-Includes necessary configuration for NativeWind.
+babel.config.js → Required NativeWind + Expo configuration
 
-## 📱 Supported Platforms
+📱 Supported Platforms
 
-- iOS
-- Android
-- Web (with appropriate configuration)
-  
-## 📄 License
+✅ Android
 
-MIT
+✅ iOS
 
-## 🤝 Contributing
+✅ Web (with Expo setup)
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+📄 License
+
+MIT License.
+
+🤝 Contributing
+
+Contributions are welcome! Please open an issue to discuss major changes before submitting a PR.
+
+✨ Teachly makes finding the right tutor as easy as tapping a button — so you can spend less time searching and more time learning.
