@@ -16,8 +16,6 @@ npx expo start
 
 🔥 Firebase → Realtime Database & Authentication for instant connections
 
-🌓 Dark/Light Theme → System sync with manual toggle
-
 📱 Responsive Design → Optimized for mobile-first learning
 
 ✨ Features
@@ -30,21 +28,7 @@ npx expo start
 
 🎨 Sleek UI – Styled with Tailwind (NativeWind) for a smooth user experience
 
-🌙 Dark/Light Mode – Study in comfort, day or night
 
-📁 Project Structure
-teachly/
-├── app/
-│   ├── layout.tsx        # Root layout with theme provider
-│   ├── index.tsx         # Home screen
-│   └── +not-found.tsx    # 404 page
-├── components/
-│   └── ThemeToggle.tsx   # Dark/Light mode toggle
-├── context/
-│   └── ThemeProvider.tsx # Theme state management
-├── tailwind.config.js    # TailwindCSS configuration
-├── babel.config.js       # Babel + NativeWind config
-└── tsconfig.json         # TypeScript configuration
 
 🛠 Configuration
 
